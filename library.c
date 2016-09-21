@@ -51,27 +51,27 @@
 	[ ] Make ioctl() call and re-set canonical mode by setting the struct termios.ICANON bit
 	[ ] Make ioctl() call and re-set echo mode by setting the struct termios.ECHO bit
 
-[ ] clear_screen()
+[X] clear_screen()
 
 	USE ANSI ESCAPE CODE TO CLEAR THE SCREEN RATH THAN BLANKING IT
 
-	[ ] Use the ANSI escape code "\033[2J" to tell the terminal to clear itself
+	[X] Use the ANSI escape code "\033[2J" to tell the terminal to clear itself
 
-[ ] getkey()
+[X] getkey()
 	
 	GATHER KEY PRESS INPUT BY READING A SINGLE CHARACTER
 
-	[ ] First, implement the non-blocking syscall select()
+	[X] First, implement the non-blocking syscall select()
 		it polls a given standard input/output/error to see if it will block or not
-	[ ] Read a single character from input using read()
+	[X] Read a single character from input using read() if input available
 
-[ ] sleep_ms()
+[X] sleep_ms()
 
 	MAKE THE PROGRAM SLEEP BETWEEN FRAMES OF GRAPHICS BEING DRAWN
 
-	[ ] Use syscall nanosleep()
-	[ ] sleep for a number of milliseconds, not nanoseconds, by multiplying by 1,000,000
-	[ ] Make nanosleep second parameter NULL b/c we aren't worried about the call being interrupted
+	[X] Use syscall nanosleep()
+	[X] sleep for a number of milliseconds, not nanoseconds, by multiplying by 1,000,000
+	[X] Make nanosleep second parameter NULL b/c we aren't worried about the call being interrupted
 
 [ ] draw_pixel()
 	
@@ -112,7 +112,7 @@ typedef unsigned short color_t; // store RGB color
 
 
 /* get the udev, mmap it */
-void clear_screen();										/* super easy, one line */
+void clear_screen();
 void draw_pixel(int x, int y, color_t color);				/* do next, make sure memory pointers correct */
 void draw_line(int x1, int y1, int x2, int y2, color_t c);
 void draw_text(int x, int y, const char *text, color_t c);
