@@ -1,19 +1,24 @@
+#include <fcntl.h>		/* open() */
 #include <stdio.h>		/* printf() */
-#include <sys/types.h>	/* open() select() */
 #include <time.h>		/* nanosleep() */
 #include <unistd.h>		/* read() write() */
+#include <sys/ioctl.h>	/* ioctl() */
 #include <sys/stat.h>	/* open() */
-#include <fcntl.h>		/* open() */
+#include <sys/types.h>	/* open() select() */
 
 /* 
+	Linux Graphics Library
+
 	Joe Meszar (jwm54@pitt.edu)
 	CS1550 Project 1 (FALL 2016)
+*/
 
+/*
 [ ] init_graphics()
 	
 	INITIALIZE THE GRAPHICS LIBRARY
 
-	[ ] Open the graphics device aka framebuffer (/dev/fb0).
+	[ ] Open the graphics device aka framebuffer (/dev/fb0) using open().
 	[ ] Map a file into address space so that we can treat it as an array.
 		mmap() memory-mapping
 			TAKES: a file descriptor from open()
@@ -23,7 +28,7 @@
 		[ ] How many pixels are there?
 		[ ] How many bytes of data are associated with each pixel?
 
-	[ ] The Screen is 640x480 (lengthxheight), 16-bit color.
+	[ ] The Screen is 640x480 (lengthxheight), 16-bit color but must find this programmatically.
 		[ ] Create a a typedef color_t that is an unsigned 16bit value
 		[ ] Make a macro/function to encode color_t from three RGB values
 			[ ] use bit-shifting and masking to make a single 16-bit number
@@ -59,7 +64,7 @@
 
 [X] getkey()
 	
-	GATHER KEY PRESS INPUT BY READING A SINGLE CHARACTER
+	GATHER KEYPRESS INPUT BY READING A SINGLE CHARACTER
 
 	[X] First, implement the non-blocking syscall select()
 		it polls a given standard input/output/error to see if it will block or not
@@ -135,13 +140,27 @@ int main() {
 }
 
 /*
-	Write the ANSI escape code to the screen to clear it. 
-	The screen is STDOUT aka fd=1
+	void *mmap(void *ADDR, size_t lengthint PROT, int FLAGS, int FD, off_t OFFSET);
+*/
+void init_graphics() {
+	int fd;
+	fd = open("/dev/fb0", O_RDWR);	// open fb0 (display)
 
-	ssize_t write(int fd, const void *buf, size_t count);
+	color_t *display_addr;
+	
+	// int munmap(void *addr, size_t length);
+	display_addr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fid, 0);
+}
+
+
+/*
+	Clear the screen by writing ANSI ESCAPE code "\033[2J".
+	The screen is STDOUT aka FD=1
+
+	ssize_t write(int FD, const void *BUF, size_t COUNT);
 */
 void clear_screen() {
-	write(1,"\033[2J",8);
+	write(1, "\033[2J", 8);
 }
 
 /*
@@ -165,7 +184,7 @@ void clear_screen() {
 	"Hey, do you have input?" -- YES -- immediately return first character from STDIN
 	"Hey, do you have input?" -- NO  -- immediately return NULL character '\0'
 
-	select(NFDS, READ_FDS, WRITE_FDS, EXCEPT_FDS, TIMEOUT)
+	int select(int NFDS, fd_set *READ_FDS, fd_set *WRITE_FDS, fd_set *EXCEPT_FDS, struct timeval *TIMEOUT);
 
 	Where NFDS is the number of the filedescriptor to check, PLUS ONE (+1):
 
@@ -191,14 +210,13 @@ char getkey() {
 /*
 	Sleep for the given amount of milliseconds.
 
-	#include <time.h>
 	struct timespec {
 	    time_t tv_sec;		// seconds
 	    long   tv_nsec;		// nanoseconds
 	};
-	int nanosleep(const struct timespec *req, struct timespec *rem);
+	int nanosleep(const struct timespec *REQ, struct timespec *REM);
 */
 void sleep_ms(long ms) {
-	struct timespec req = {0, ms*1000000};	// milli to nanoseconds
+	struct timespec req = {0, ms*1000000};	// milliseconds to nanoseconds
 	nanosleep(&req, NULL); 					// don't worry about interrupts
 }
