@@ -1,10 +1,18 @@
 #include <fcntl.h>		/* open() */
 #include <stdio.h>		/* printf() */
+#include <termios.h>	/* TCGETS TCSETS */
 #include <time.h>		/* nanosleep() */
 #include <unistd.h>		/* read() write() */
+#include <linux/fb.h>	/* FB_VAR_SCREENINFO FB_FIX_SCREENINFO */
 #include <sys/ioctl.h>	/* ioctl() */
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
+
+/* REFERENCES
+	(DELETE) FRAMEBUFFER: https://gist.github.com/FredEckert/3425429
+	TERMIOS: https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+
+*/
 
 /* 
 	Linux Graphics Library
@@ -18,34 +26,34 @@
 	
 	INITIALIZE THE GRAPHICS LIBRARY
 
-	[ ] Open the graphics device aka framebuffer (/dev/fb0) using open().
-	[ ] Map a file into address space so that we can treat it as an array.
+	[X] Open the graphics device aka framebuffer (/dev/fb0) using open().
+	[X] Map a file into address space so that we can treat it as an array.
 		mmap() memory-mapping
 			TAKES: a file descriptor from open()
 			RETURNS: void * address space that represents the contents of the file.
-		[ ] Use MAP_SHARED param b/c other parts of OS want to use the framebuffer too
+		[X] Use MAP_SHARED param b/c other parts of OS want to use the framebuffer too
 	[ ] Use pointer arithmetic OR array subscripting to set each individual pixel
 		[ ] How many pixels are there?
 		[ ] How many bytes of data are associated with each pixel?
 
-	[ ] The Screen is 640x480 (lengthxheight), 16-bit color but must find this programmatically.
-		[ ] Create a a typedef color_t that is an unsigned 16bit value
+	[ ] Find the screen resolution and bit depth programmatically.
+		[ ] Create a typedef color_t that is an unsigned 16bit value
 		[ ] Make a macro/function to encode color_t from three RGB values
 			[ ] use bit-shifting and masking to make a single 16-bit number
-		[ ] Get screen size with system call ioctl()
+		[X] Get screen size with system call ioctl()
 			it queries and sets parameters for almost any device connected.
 			TAKES: file descriptor AND a number that represents the request you're making:
 				FBIOGET_VSCREENINFO: returns struct fb_var_screeninfo with virtual resolution.
 				FBIOGET_FSCREENINFO: returns struct fb_fix_screeninfo to determin bit depth
-		[ ] Determine the bit depth from returned struct fb_fix_screeninfo
-		[ ] Total size of mmap()'ed file is: fb_var_screeninfo.yres_virtual * fb_fix_screeninfo.line_length
-	[ ] Use ioctl() syscall to disable keypress echo which displays the keys are you're typing
-		[ ] buffer the keypresses instead using TCGETS and TCSETS
-		[ ] TCGETS and TCSETS take a struct termios describign the current terminal settings
-		[ ] Disable CANONICAL MODE by unsetting the ICANON bit
-		[ ] Disable echo'ing by unsetting the ECHO bit
-		[ ] exit_graphics() will clean up terminal settings by restoring ICANON and ECHO
-		[ ] Create a helper program called FIX to turn ECHO and ICANON bits back on in case of error.
+		[X] Determine the bit depth from returned struct fb_fix_screeninfo
+		[X] Total size of mmap()'ed file is: fb_var_screeninfo.yres_virtual * fb_fix_screeninfo.line_length
+	[X] Use ioctl() syscall to disable keypress echo which displays the keys are you're typing
+		[X] buffer the keypresses instead using TCGETS and TCSETS
+		[X] TCGETS and TCSETS take a struct TERMIOS describing the current terminal settings
+		[X] Disable CANONICAL MODE by unsetting the ICANON bit
+		[X] Disable echo'ing by unsetting the ECHO bit
+
+[ ] Create a helper program called FIX to turn ECHO and ICANON bits back on in case of error.
 
 [ ] exit_graphics()
 	
@@ -53,8 +61,8 @@
 
 	[ ] Use close() on files
 	[ ] Use munmap on memory mapped file
-	[ ] Make ioctl() call and re-set canonical mode by setting the struct termios.ICANON bit
-	[ ] Make ioctl() call and re-set echo mode by setting the struct termios.ECHO bit
+	[ ] Make ioctl() call and re-set canonical mode by setting the struct TERMIOS ICANON bit
+	[ ] Make ioctl() call and re-set echo mode by setting the struct TERMIOS ECHO bit
 
 [X] clear_screen()
 
@@ -113,10 +121,13 @@
 	[      RED     ]  [      GREEN      ]  [     BLUE     ]
 	[15-14-13-12-11]  [10-09-08-07-06-05]  [04-03-02-01-00]
 */
-typedef unsigned short color_t; // store RGB color
+int fd_display;							// reference to display
+long int screen_size;					// number of bytes of entire display
+typedef unsigned short color_t;			// store RGB color
+color_t *display_addr;					// starting address of display
+struct fb_var_screeninfo display_res;	// resolution for the mapped display
+struct fb_fix_screeninfo display_depth;	// bit depth for the mapped display
 
-
-/* get the udev, mmap it */
 void clear_screen();
 void draw_pixel(int x, int y, color_t color);				/* do next, make sure memory pointers correct */
 void draw_line(int x1, int y1, int x2, int y2, color_t c);
@@ -130,26 +141,69 @@ int main() {
 	long t = 1;
 	sleep_ms(t);			// sleep for t seconds
 
-	char c;
-	c = getkey();			// see if a key was pressed
-	printf("key: %c", c);
+	printf("%x", ICANON);
 
-	clear_screen();			// clear the terminal
+
+	char c;
+	//c = getkey();			// see if a key was pressed
+	//printf("key: %c", c);
+
+	//clear_screen();			// clear the terminal
 
 	return 0;
 }
 
 /*
-	void *mmap(void *ADDR, size_t lengthint PROT, int FLAGS, int FD, off_t OFFSET);
+	Will get the framebuffer fb0, aka the mounted display device, and map it's address
+	space for further manipulation. This happens by getting the resolution and bit-depth
+	associated with the given display device and mapping into an array of LENGTHxWIDTH.
+
+	The terminal is also manipulated by unsetting the CANONICAL and ECHO flags. This is done
+	to make the input available immediately (without the user having to type a line-delimiter 
+	character) by unsetting ICANON flag, and to not show any characters the user has typed on the
+	screen by unsetting the ECHO flag.
+
+	struct termios {
+		tcflag_t c_iflag;		// input modes
+    	tcflag_t c_oflag;		// output modes
+    	tcflag_t c_cflag;		// control modes
+    	tcflag_t c_lflag;		// local modes
+    	cc_t c_cc[NCCS];		// control chars
+	}
+	int ioctl(int D, int REQUEST, ...);
+	void *mmap(void *ADDR, size_t lengthint PROT, int FLAGS, int fd, off_t OFFSET);
 */
 void init_graphics() {
-	int fd;
-	fd = open("/dev/fb0", O_RDWR);	// open fb0 (display)
+	fd_display = open("/dev/fb0", O_RDWR);						// open display (framebuffer fb0)
 
-	color_t *display_addr;
-	
-	// int munmap(void *addr, size_t length);
-	display_addr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fid, 0);
+	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
+	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
+
+	long int screen_size = 0;
+	screen_size = display_res.yres_virtual * display_depth.line_length //?? * vinfo.bits_per_pixel / 8;
+
+	// map the opened display for manipulation, starting at offset 0 (so map everything)
+	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+	struct termios terminal_settings;
+	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
+	terminal_settings.c_lflag &= ~(ICANON);			// unset ICANON flag
+	terminal_settings.c_lflag &= ~(ECHO);			// unset ECHO flag
+	ioctl(fd_display, TCSETS, &terminal_settings);	// set terminal settings
+}
+
+/*
+	int munmap(void *ADDR, size_t LENGTH);	
+*/
+void exit_graphics() {
+	close(fd_display);					// close the display
+	munmap(fd_display, screen_size);	// remove all mappings that contain pages in given address space
+
+	struct termios terminal_settings;
+	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
+	terminal_settings.c_lflag &= ICANON;			// set ICANON flag
+	terminal_settings.c_lflag &= ECHO;				// set ECHO flag
+	ioctl(fd_display, TCSETS, &terminal_settings);	// set terminal settings
 }
 
 
@@ -162,6 +216,7 @@ void init_graphics() {
 void clear_screen() {
 	write(1, "\033[2J", 8);
 }
+
 
 /*
 	Three independent sets of file descriptors are watched. Those listed in readfds 
@@ -207,8 +262,12 @@ char getkey() {
 	return c;
 }
 
+
 /*
-	Sleep for the given amount of milliseconds.
+	Sleep for the given amount of milliseconds. It might sleep for less time because
+	the cpu may issue an interrupt. In this case, we will not care about it and just
+	return. (NULL) parameter used to not care about the interrupt. Otherwise, the
+	time remaining will be held in this TIMESPEC parameter.
 
 	struct timespec {
 	    time_t tv_sec;		// seconds
@@ -218,5 +277,5 @@ char getkey() {
 */
 void sleep_ms(long ms) {
 	struct timespec req = {0, ms*1000000};	// milliseconds to nanoseconds
-	nanosleep(&req, NULL); 					// don't worry about interrupts
+	nanosleep(&req, NULL); 					// (NULL) says don't worry about interrupts
 }
