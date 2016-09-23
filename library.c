@@ -124,7 +124,7 @@
 	[15-14-13-12-11]  [10-09-08-07-06-05]  [04-03-02-01-00]
 */
 int fd_display;							// reference to display
-long int screen_size;					// number of bytes of entire display
+size_t screen_size;					// number of bytes of entire display
 typedef unsigned short color_t;			// store RGB color
 color_t *display_addr;					// starting address of display
 struct fb_var_screeninfo display_res;	// resolution for the mapped display
@@ -143,27 +143,29 @@ int main() {
 	init_graphics();
 	clear_screen();
 
-	int x, y;
+	int x, y, z;
 	// FILL EVERY PIXEL ROW-BY-ROW
-	for (y=0; y<480; y++) {
-		sleep_ms(1);
-		for (x=0; x<640; x++) {
-			display_addr[(y * display_res.xres_virtual) + x] = 0xF800;
-		}
-	}
+	// for (y=0; y<480; y++) {
+	// 	sleep_ms(1);
+	// 	for (x=0; x<640; x++) {
+	// 		display_addr[(y * display_res.xres_virtual) + x] = 0xF800;
+	// 	}
+	// }
 
 	// FILL EVERY PIXEL COLUMN BY COLUMN
-	for (x=0; x<640; x++) {
+	for (z=1; z<3; z++) {
 		sleep_ms(1);
-		for (y=0; y<480; y++) {
-			display_addr[(y * (display_depth.line_length/2)) + x] = 0x07E0;
+		for (x=0; x<640; x++) {
+			for (y=0; y<480; y++) {
+				display_addr[(y * (display_depth.line_length/(sizeof *display_addr))) + x] = (0xFFFF / z) ;
+			}
 		}
 	}
 
 	exit_graphics();
 
 	/* DEBUG */
-	printf("sizeof(display_addr): %d\n", sizeof *display_addr);
+	printf("sizeof(display_addr): %d\n", (sizeof *display_addr));
 	printf("display_res.yres: %d\n", display_res.yres);
 	printf("display_res.xres: %d\n", display_res.xres);
 	printf("display_res.yres_virtual: %d\n", display_res.yres_virtual);
@@ -219,7 +221,7 @@ void init_graphics() {
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
-	size_t screen_size = 0;
+	//size_t screen_size = 0;
 	//screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 
