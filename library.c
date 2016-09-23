@@ -24,7 +24,10 @@
 */
 
 /*
-[ ] init_graphics()
+Zip project into USERNAME-project1.tar.gz and submit to ~jrmst106/submit/1550
+include a driver.c that runs everything
+
+[X] init_graphics()
 	
 	INITIALIZE THE GRAPHICS LIBRARY
 
@@ -34,12 +37,12 @@
 			TAKES: a file descriptor from open()
 			RETURNS: void * address space that represents the contents of the file.
 		[X] Use MAP_SHARED param b/c other parts of OS want to use the framebuffer too
-	[ ] Use pointer arithmetic OR array subscripting to set each individual pixel
-		[ ] How many pixels are there?
-		[ ] How many bytes of data are associated with each pixel?
+	[X] Use pointer arithmetic OR array subscripting to set each individual pixel
+		[X] How many pixels are there?
+		[X] How many bytes of data are associated with each pixel?
 
-	[ ] Find the screen resolution and bit depth programmatically.
-		[ ] Create a typedef color_t that is an unsigned 16bit value
+	[X] Find the screen resolution and bit depth programmatically.
+		[X] Create a typedef color_t that is an unsigned 16bit value
 		[ ] Make a macro/function to encode color_t from three RGB values
 			[ ] use bit-shifting and masking to make a single 16-bit number
 		[X] Get screen size with system call ioctl()
@@ -57,14 +60,14 @@
 
 [ ] Create a helper program called FIX to turn ECHO and ICANON bits back on in case of error.
 
-[ ] exit_graphics()
+[X] exit_graphics()
 	
 	WILL UNDO WHATEVER CHANGES TO TERMINAL WERE MADE, CLOSE FILES, AND CLEAN UP MEMORY
 
-	[ ] Use close() on files
-	[ ] Use munmap on memory mapped file
-	[ ] Make ioctl() call and re-set canonical mode by setting the struct TERMIOS ICANON bit
-	[ ] Make ioctl() call and re-set echo mode by setting the struct TERMIOS ECHO bit
+	[X] Use close() on files
+	[X] Use munmap on memory mapped file
+	[X] Make ioctl() call and re-set canonical mode by setting the struct TERMIOS ICANON bit
+	[X] Make ioctl() call and re-set echo mode by setting the struct TERMIOS ECHO bit
 
 [X] clear_screen()
 
@@ -80,7 +83,7 @@
 		it polls a given standard input/output/error to see if it will block or not
 	[X] Read a single character from input using read() if input available
 
-[X] sleep_ms()
+[X] sleep_ms(long ms)
 
 	MAKE THE PROGRAM SLEEP BETWEEN FRAMES OF GRAPHICS BEING DRAWN
 
@@ -88,21 +91,21 @@
 	[X] sleep for a number of milliseconds, not nanoseconds, by multiplying by 1,000,000
 	[X] Make nanosleep second parameter NULL b/c we aren't worried about the call being interrupted
 
-[ ] draw_pixel()
+[X] draw_pixel(int x, int y, color_t color)
 	
 	MAIN DRAWING CODE, SET THE PIXEL AT A COORDINATE(X,Y) TO THE SPECIFIED COLOR.
 
-	[ ] Use the given X,Y coordinates to scale the base address of the memory-mapped framebuffer using pointer arithmetic
+	[X] Use the given X,Y coordinates to scale the base address of the memory-mapped framebuffer using pointer arithmetic
 		- The framebuffer is stored in ROW-MAJOR ORDER: first row starts at offset 0
 
-[ ] draw_line()
+[ ] draw_line(int x1, int y1, int x2, int y2, color_t c)
 
 	USING draw_pixel(), MAKES A LINE FROM (X1,Y1) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
 
 	[ ] Implement Bresenham's algorithm using only integer math.
 	[ ] Make sure the implmentation works for all valid coordinates and slopes.
 
-[ ] draw_text()
+[ ] draw_text(int x, int y, const char *text, color_t c)
 	
 	DRAW A STRING WITH THE SPECIFIED COLOR AT THE LOCATION (X,Y); THE UPPER-LEFT CORNER OF THE FIRST LETTER.
 
@@ -123,9 +126,10 @@
 	[      RED     ]  [      GREEN      ]  [     BLUE     ]
 	[15-14-13-12-11]  [10-09-08-07-06-05]  [04-03-02-01-00]
 */
-int fd_display;							// reference to display
-size_t screen_size;					// number of bytes of entire display
 typedef unsigned short color_t;			// store RGB color
+
+int fd_display;							// reference to display
+size_t screen_size;						// number of bytes of entire display
 color_t *display_addr;					// starting address of display
 struct fb_var_screeninfo display_res;	// resolution for the mapped display
 struct fb_fix_screeninfo display_depth;	// bit depth for the mapped display
@@ -139,38 +143,40 @@ void exit_graphics();
 char getkey();
 void sleep_ms(long ms);
 
+#define BMASK(c) (c & 0x001F) // Blue mask
+#define GMASK(c) (c & 0x07E0) // Green mask
+#define RMASK(c) (c & 0xF800) // Red mask
+
 int main() {
 	init_graphics();
-	clear_screen();
 
-	int x, y, z;
-	// FILL EVERY PIXEL ROW-BY-ROW
-	// for (y=0; y<480; y++) {
-	// 	sleep_ms(1);
-	// 	for (x=0; x<640; x++) {
-	// 		display_addr[(y * display_res.xres_virtual) + x] = 0xF800;
-	// 	}
-	// }
-
-	// FILL EVERY PIXEL COLUMN BY COLUMN
-	for (z=1; z<3; z++) {
-		sleep_ms(1);
-		for (x=0; x<640; x++) {
-			for (y=0; y<480; y++) {
-				display_addr[(y * (display_depth.line_length/(sizeof *display_addr))) + x] = (0xFFFF / z) ;
-			}
+	int x, y;
+	color_t color = 0xF800;
+	for (x=0; x<640; x++) {
+		for (y=0; y<480; y++) {
+			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
 		}
 	}
+	sleep_ms(1000);
+	color = 0x07E0;
+	for (y=0; y<480; y++) {
+		for (x=0; x<640; x++) {
+			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
+		}
+	}
+	sleep_ms(1000);
 
-	exit_graphics();
+	//exit_graphics();
 
 	/* DEBUG */
-	printf("sizeof(display_addr): %d\n", (sizeof *display_addr));
-	printf("display_res.yres: %d\n", display_res.yres);
-	printf("display_res.xres: %d\n", display_res.xres);
-	printf("display_res.yres_virtual: %d\n", display_res.yres_virtual);
-	printf("display_res.xres_virtual: %d\n", display_res.xres_virtual);
-	printf("display_depth.line_length: %d\n", display_depth.line_length);
+	// printf("(y * display_res.xres_virtual) + x: %d\n", ((479 * display_res.xres_virtual) + 639));
+	// printf("(y * (display_depth.line_length/(sizeof *display_addr))) + x: %d\n", ((479 * (display_depth.line_length/(sizeof *display_addr))) + 639));
+	// printf("sizeof(*display_addr): %d\n", (sizeof *display_addr));
+	// printf("display_res.yres: %d\n", display_res.yres);
+	// printf("display_res.xres: %d\n", display_res.xres);
+	// printf("display_res.yres_virtual: %d\n", display_res.yres_virtual);
+	// printf("display_res.xres_virtual: %d\n", display_res.xres_virtual);
+	// printf("display_depth.line_length: %d\n", display_depth.line_length);
 	return 0;
 }
 
@@ -221,11 +227,9 @@ void init_graphics() {
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
-	//size_t screen_size = 0;
-	//screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 
-	// map the opened display for manipulation, starting at offset 0 (so map everything)
+	// map the opened display for manipulation, starting at offset 0 (map everything)
 	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_display, 0);
 
 	struct termios terminal_settings;
@@ -239,14 +243,15 @@ void init_graphics() {
 	int munmap(void *ADDR, size_t LENGTH);	
 */
 void exit_graphics() {
-	close(fd_display);			// close the display
-	munmap(0, screen_size);		// remove all mappings that contain pages in given address space
+	munmap(display_addr, screen_size);				// remove all mappings that contain pages in given address space
 
 	struct termios terminal_settings;
 	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
 	terminal_settings.c_lflag &= ICANON;			// set ICANON flag
 	terminal_settings.c_lflag &= ECHO;				// set ECHO flag
 	ioctl(fd_display, TCSETS, &terminal_settings);	// set terminal settings
+
+	close(fd_display);								// close the display
 }
 
 
