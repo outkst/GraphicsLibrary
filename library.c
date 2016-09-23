@@ -5,9 +5,11 @@
 #include <unistd.h>		/* read() write() */
 #include <linux/fb.h>	/* FB_VAR_SCREENINFO FB_FIX_SCREENINFO */
 #include <sys/ioctl.h>	/* ioctl() */
+#include <sys/mman.h>	/* PROT_READ PROT_WRITE */
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
 
+#include <stdio.h>
 /* REFERENCES
 	(DELETE) FRAMEBUFFER: https://gist.github.com/FredEckert/3425429
 	TERMIOS: https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
@@ -138,21 +140,58 @@ char getkey();
 void sleep_ms(long ms);
 
 int main() {
-	long t = 1;
 	sleep_ms(t);			// sleep for t seconds
 
-	printf("%x", ICANON);
+	init_graphics();
+	clear_screen();
 
+	int x, y;
+	// FILL EVERY PIXEL ROW-BY-ROW
+	for (y=0; y<480; y++) {
+		sleep_ms(1);
+		for (x=0; x<640; x++) {
+			display_addr[(y * display_res.xres_virtual) + x] = 0xF800;
+		}
+	}
 
-	char c;
-	//c = getkey();			// see if a key was pressed
-	//printf("key: %c", c);
+	// FILL EVERY PIXEL COLUMN BY COLUMN
+	for (x=0; x<640; x++) {
+		sleep_ms(1);
+		for (y=0; y<480; y++) {
+			display_addr[(y * (display_depth.line_length/2)) + x] = 0x07E0;
+		}
+	}
 
-	//clear_screen();			// clear the terminal
+	exit_graphics();
 
+	/* DEBUG */
+	color_t asdf;
+	printf("sizeof(color_t): %d\n", sizeof(asdf));
+	printf("display_res.yres: %d\n", display_res.yres);
+	printf("display_res.xres: %d\n", display_res.xres);
+	printf("display_res.yres_virtual: %d\n", display_res.yres_virtual);
+	printf("display_res.xres_virtual: %d\n", display_res.xres_virtual);
+	printf("display_depth.line_length: %d\n", display_depth.line_length);
 	return 0;
 }
 
+/*
+	Clear the screen by writing ANSI ESCAPE code "\033[2J".
+	The screen is STDOUT aka FD=1
+
+	ssize_t write(int FD, const void *BUF, size_t COUNT);
+*/
+void clear_screen() {
+	write(1, "\033[2J", 8);
+}
+
+
+/*
+	Manipulate the display as a ROW MAJOR ORDER array
+*/
+void draw_pixel(int x, int y, color_t color) {
+	display_addr[(y * (display_depth.line_length/2)) + x] = color;
+}
 /*
 	Will get the framebuffer fb0, aka the mounted display device, and map it's address
 	space for further manipulation. This happens by getting the resolution and bit-depth
@@ -174,16 +213,17 @@ int main() {
 	void *mmap(void *ADDR, size_t lengthint PROT, int FLAGS, int fd, off_t OFFSET);
 */
 void init_graphics() {
+	clear_screen();												// clear the terminal
 	fd_display = open("/dev/fb0", O_RDWR);						// open display (framebuffer fb0)
 
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
 	long int screen_size = 0;
-	screen_size = display_res.yres_virtual * display_depth.line_length //?? * vinfo.bits_per_pixel / 8;
+	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 
 	// map the opened display for manipulation, starting at offset 0 (so map everything)
-	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_display, 0);
 
 	struct termios terminal_settings;
 	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
@@ -196,25 +236,14 @@ void init_graphics() {
 	int munmap(void *ADDR, size_t LENGTH);	
 */
 void exit_graphics() {
-	close(fd_display);					// close the display
-	munmap(fd_display, screen_size);	// remove all mappings that contain pages in given address space
+	close(fd_display);			// close the display
+	munmap(0, screen_size);		// remove all mappings that contain pages in given address space
 
 	struct termios terminal_settings;
 	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
 	terminal_settings.c_lflag &= ICANON;			// set ICANON flag
 	terminal_settings.c_lflag &= ECHO;				// set ECHO flag
 	ioctl(fd_display, TCSETS, &terminal_settings);	// set terminal settings
-}
-
-
-/*
-	Clear the screen by writing ANSI ESCAPE code "\033[2J".
-	The screen is STDOUT aka FD=1
-
-	ssize_t write(int FD, const void *BUF, size_t COUNT);
-*/
-void clear_screen() {
-	write(1, "\033[2J", 8);
 }
 
 
@@ -248,7 +277,6 @@ void clear_screen() {
 */
 char getkey() {
 	char c = '\0';			// default return value of NULL
-	char buff[2] = {0};		// two byte buffer (1 input char + newline)
 
 	fd_set read_fds;		// create file descriptor set for STDIN
 	FD_ZERO(&read_fds);		// init read_fds to zero (CLEAR)
