@@ -140,8 +140,6 @@ char getkey();
 void sleep_ms(long ms);
 
 int main() {
-	sleep_ms(t);			// sleep for t seconds
-
 	init_graphics();
 	clear_screen();
 
@@ -165,8 +163,7 @@ int main() {
 	exit_graphics();
 
 	/* DEBUG */
-	color_t asdf;
-	printf("sizeof(color_t): %d\n", sizeof(asdf));
+	printf("sizeof(display_addr): %d\n", sizeof *display_addr);
 	printf("display_res.yres: %d\n", display_res.yres);
 	printf("display_res.xres: %d\n", display_res.xres);
 	printf("display_res.yres_virtual: %d\n", display_res.yres_virtual);
@@ -187,10 +184,13 @@ void clear_screen() {
 
 
 /*
-	Manipulate the display as a ROW MAJOR ORDER array
+	Manipulate the display as a ROW MAJOR ORDER array.
+
+	To calculate each row, take the line length divided by the size
+	in bytes dedicated for each pixel (color_t).
 */
 void draw_pixel(int x, int y, color_t color) {
-	display_addr[(y * (display_depth.line_length/2)) + x] = color;
+	display_addr[(y * (display_depth.line_length/(sizeof *display_addr))) + x] = color;
 }
 /*
 	Will get the framebuffer fb0, aka the mounted display device, and map it's address
@@ -219,7 +219,8 @@ void init_graphics() {
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
-	long int screen_size = 0;
+	size_t screen_size = 0;
+	//screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
 
 	// map the opened display for manipulation, starting at offset 0 (so map everything)
