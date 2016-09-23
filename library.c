@@ -83,7 +83,7 @@ include a driver.c that runs everything
 		it polls a given standard input/output/error to see if it will block or not
 	[X] Read a single character from input using read() if input available
 
-[X] sleep_ms(long ms)
+[X] sleep_ms(long MS)
 
 	MAKE THE PROGRAM SLEEP BETWEEN FRAMES OF GRAPHICS BEING DRAWN
 
@@ -91,21 +91,21 @@ include a driver.c that runs everything
 	[X] sleep for a number of milliseconds, not nanoseconds, by multiplying by 1,000,000
 	[X] Make nanosleep second parameter NULL b/c we aren't worried about the call being interrupted
 
-[X] draw_pixel(int x, int y, color_t color)
+[X] draw_pixel(int X, int Y, color_t COLOR)
 	
 	MAIN DRAWING CODE, SET THE PIXEL AT A COORDINATE(X,Y) TO THE SPECIFIED COLOR.
 
 	[X] Use the given X,Y coordinates to scale the base address of the memory-mapped framebuffer using pointer arithmetic
 		- The framebuffer is stored in ROW-MAJOR ORDER: first row starts at offset 0
 
-[ ] draw_line(int x1, int y1, int x2, int y2, color_t c)
+[ ] draw_line(int X1, int Y1, int X2, int Y2, color_t C)
 
 	USING draw_pixel(), MAKES A LINE FROM (X1,Y1) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
 
 	[ ] Implement Bresenham's algorithm using only integer math.
 	[ ] Make sure the implmentation works for all valid coordinates and slopes.
 
-[ ] draw_text(int x, int y, const char *text, color_t c)
+[ ] draw_text(int X, int Y, const char *TEXT, color_t C)
 	
 	DRAW A STRING WITH THE SPECIFIED COLOR AT THE LOCATION (X,Y); THE UPPER-LEFT CORNER OF THE FIRST LETTER.
 
@@ -166,7 +166,7 @@ int main() {
 	}
 	sleep_ms(1000);
 
-	//exit_graphics();
+	exit_graphics();
 
 	/* DEBUG */
 	// printf("(y * display_res.xres_virtual) + x: %d\n", ((479 * display_res.xres_virtual) + 639));
@@ -240,9 +240,14 @@ void init_graphics() {
 }
 
 /*
+	Unmap the display device, set the terminal back, and then close the display
+	file descriptor.
+
 	int munmap(void *ADDR, size_t LENGTH);	
 */
 void exit_graphics() {
+	clear_screen();									// clear the screen and start cleaning up
+
 	munmap(display_addr, screen_size);				// remove all mappings that contain pages in given address space
 
 	struct termios terminal_settings;
