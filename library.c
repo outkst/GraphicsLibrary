@@ -194,24 +194,14 @@ void exit_graphics() {
 */
 char getkey() {
 	int c = '\0';			// default return value of NULL
-	int ready;
 
-	fd_set read_fds;
+	fd_set read_fds;		// create file descriptor for our READ operation
 	FD_ZERO(&read_fds);		// init read_fds to zero (CLEAR)
 	FD_SET(0, &read_fds);	// add read_fds to STDIN (0) aka keyboard fds
 
 	struct timeval time_to_wait = {0, 0};
-	ready = select(1, &read_fds, NULL, NULL, &time_to_wait);
-
-	if (ready == -1) {
-		//printf("Error\n");
-
-	} else if (ready) {
-		//printf("Data ready\n");
-		read(1, &c, sizeof(char));	//readin int, but read size of char
-		//printf("key: %d %c", c, c);
-	} else {
-		//printf("Nothing to be read...\n");
+	if (select(1, &read_fds, NULL, NULL, &time_to_wait) {
+		read(1, &c, sizeof(char));	//read int, but read size of char
 	}
 
 	return c;
