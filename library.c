@@ -1,5 +1,4 @@
 #include <fcntl.h>		/* open() */
-#include <stdio.h>		/* printf() */
 #include <termios.h>	/* TCGETS TCSETS */
 #include <time.h>		/* nanosleep() */
 #include <unistd.h>		/* read() write() */
@@ -9,7 +8,8 @@
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
 
-#include <stdio.h>
+
+#include <stdio.h>		/* DEBUG */
 /* REFERENCES
 	(DELETE) FRAMEBUFFER: https://gist.github.com/FredEckert/3425429
 	TERMIOS: https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
@@ -43,8 +43,8 @@ include a driver.c that runs everything
 
 	[X] Find the screen resolution and bit depth programmatically.
 		[X] Create a typedef color_t that is an unsigned 16bit value
-		[ ] Make a macro/function to encode color_t from three RGB values
-			[ ] use bit-shifting and masking to make a single 16-bit number
+		[X] Make a macro/function to encode color_t from three RGB values
+			[X] use bit-shifting and masking to make a single 16-bit number
 		[X] Get screen size with system call ioctl()
 			it queries and sets parameters for almost any device connected.
 			TAKES: file descriptor AND a number that represents the request you're making:
@@ -57,8 +57,6 @@ include a driver.c that runs everything
 		[X] TCGETS and TCSETS take a struct TERMIOS describing the current terminal settings
 		[X] Disable CANONICAL MODE by unsetting the ICANON bit
 		[X] Disable echo'ing by unsetting the ECHO bit
-
-[ ] Create a helper program called FIX to turn ECHO and ICANON bits back on in case of error.
 
 [X] exit_graphics()
 	
@@ -98,9 +96,9 @@ include a driver.c that runs everything
 	[X] Use the given X,Y coordinates to scale the base address of the memory-mapped framebuffer using pointer arithmetic
 		- The framebuffer is stored in ROW-MAJOR ORDER: first row starts at offset 0
 
-[ ] draw_line(int X1, int Y1, int X2, int Y2, color_t C)
+[ ] draw_line(int x2, int y2, int X2, int Y2, color_t C)
 
-	USING draw_pixel(), MAKES A LINE FROM (X1,Y1) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
+	USING draw_pixel(), MAKES A LINE FROM (x2,y2) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
 
 	[ ] Implement Bresenham's algorithm using only integer math.
 	[ ] Make sure the implmentation works for all valid coordinates and slopes.
@@ -110,7 +108,7 @@ include a driver.c that runs everything
 	DRAW A STRING WITH THE SPECIFIED COLOR AT THE LOCATION (X,Y); THE UPPER-LEFT CORNER OF THE FIRST LETTER.
 
 	[ ] Draw starting with location (x,y) which is the upper-left corner of the first letter
-		Each letter is 8x16 (widthxheight) enchoded as 16 1-byte integers
+		Each letter is 8x26 (widthxheight) enchoded as 16 1-byte integers
 	[ ] Use the Apple font encoded into an array in iso_font.h 
 	[ ] Use the array defined in iso_font.h
 		- e.g. The 16 values for the letter 'A' (ASCII 65) is found at indices (65)*(16+0) to (65)*(16+15)
@@ -129,13 +127,14 @@ include a driver.c that runs everything
 typedef unsigned short color_t;			// store RGB color
 
 int fd_display;							// reference to display
+int res_height, res_width;				// store display-height and width calculation
 size_t screen_size;						// number of bytes of entire display
 color_t *display_addr;					// starting address of display
 struct fb_var_screeninfo display_res;	// resolution for the mapped display
 struct fb_fix_screeninfo display_depth;	// bit depth for the mapped display
 
 void clear_screen();
-void draw_pixel(int x, int y, color_t color);				/* do next, make sure memory pointers correct */
+void draw_pixel(int x, int y, color_t color);
 void draw_line(int x1, int y1, int x2, int y2, color_t c);
 void draw_text(int x, int y, const char *text, color_t c);
 void init_graphics();
@@ -143,9 +142,10 @@ void exit_graphics();
 char getkey();
 void sleep_ms(long ms);
 
-#define BMASK(c) (c & 0x001F) // Blue mask
-#define GMASK(c) (c & 0x07E0) // Green mask
-#define RMASK(c) (c & 0xF800) // Red mask
+#define BMASK(c) (c & 0x101F)	// Blue mask
+#define GMASK(c) (c & 0x17E0)	// Green mask
+#define RMASK(c) (c & 0xF800) 	// Red mask
+#define TRUE 1					// fuck C
 
 int main() {
 	init_graphics();
@@ -158,7 +158,7 @@ int main() {
 		}
 	}
 	sleep_ms(1000);
-	color = 0x07E0;
+	color = 0x17E0;
 	for (y=0; y<480; y++) {
 		for (x=0; x<640; x++) {
 			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
@@ -166,11 +166,17 @@ int main() {
 	}
 	sleep_ms(1000);
 
-	exit_graphics();
+	int x1, x2, y1, y2;
+	x1 = 100; y1 = 200;
+	x2 = 639; y2 = 479;
+	color = 0xF800;
+	draw_line(x1, y1, x2, y2, RMASK(color) | GMASK(color) | BMASK(color));
+
+	//exit_graphics();
 
 	/* DEBUG */
-	// printf("(y * display_res.xres_virtual) + x: %d\n", ((479 * display_res.xres_virtual) + 639));
-	// printf("(y * (display_depth.line_length/(sizeof *display_addr))) + x: %d\n", ((479 * (display_depth.line_length/(sizeof *display_addr))) + 639));
+	//printf("(y * display_res.xres_virtual) + x: %d\n", ((479 * display_res.xres_virtual) + 639));
+	//printf("(y * (display_depth.line_length/(sizeof *display_addr))) + x: %d\n", ((479 * (display_depth.line_length/(sizeof *display_addr))) + 639));
 	// printf("sizeof(*display_addr): %d\n", (sizeof *display_addr));
 	// printf("display_res.yres: %d\n", display_res.yres);
 	// printf("display_res.xres: %d\n", display_res.xres);
@@ -179,6 +185,16 @@ int main() {
 	// printf("display_depth.line_length: %d\n", display_depth.line_length);
 	return 0;
 }
+
+
+/*
+	lazy absolute value function
+*/
+int abs(int x) {
+	if (x < 0) { x = -x; }
+	return x;
+}
+
 
 /*
 	Clear the screen by writing ANSI ESCAPE code "\033[2J".
@@ -190,15 +206,53 @@ void clear_screen() {
 	write(1, "\033[2J", 8);
 }
 
+/*
+	Using Bresenham's Algorithm for drawing a straight line
+	between two given points.
+
+	NOTE: The algorithm has a "standard error" associated 
+	with it. So when lines get drawn they will be approximate
+	per-pixel locations.
+
+	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
+*/
+void draw_line(int x1, int y1, int x2, int y2, color_t c) {
+
+	// keep the coordinates within the bounds of the display.
+	if (x1 < 0 || x1 >= res_width) { x1 = abs(x1 % res_width); }
+	if (x2 < 0 || x2 >= res_width) { x1 = abs(x2 % res_width); }
+	if (y1 < 0 || y1 >= res_height) { y1 = abs(y1 % res_height); }
+	if (y2 < 0 || y2 >= res_height) { y2 = abs(y2 % res_height); }
+
+	int dx = abs(x2-x1);						// get destination x length
+	int sx = x1<x2 ? 1 : -1;					// get source x direction
+	int dy = abs(y2-y1);						// get destination y length
+	int sy = y1<y2 ? 1 : -1;					// get source y direction
+	int err = (dx>dy ? dx : -dy)/2, e2;			// determine standard error for line
+
+	while(TRUE) {
+		sleep_ms(1);							// DEBUG
+		draw_pixel(x1, y1, c);					// draw a point of the line
+		if (x1==x2 && y1==y2) break;			// stop when reached the destination point
+		e2 = err;								
+		if (e2 >-dx) { err -= dy; x1 += sx; }	// determine new X point according to standard error
+		if (e2 < dy) { err += dx; y1 += sy; }	// determine new Y point according to standard error
+	}
+}
+
 
 /*
-	Manipulate the display as a ROW MAJOR ORDER array.
+	Manipulate the display as a ROW MAJOR ORDER array. Inputs will be wrapped around
+	the display using modulus calculation, just to keep from segmentation faults.
 
 	To calculate each row, take the line length divided by the size
 	in bytes dedicated for each pixel (color_t).
 */
 void draw_pixel(int x, int y, color_t color) {
-	display_addr[(y * (display_depth.line_length/(sizeof *display_addr))) + x] = color;
+	if (x < 0 || x >= res_width) { x = abs(x % res_width); }	// keep within x boundary
+	if (y < 0 || y >= res_height) { y = abs(y % res_height); }	// keep within y boundary	
+
+	display_addr[(y * res_width) + x] = color;
 }
 /*
 	Will get the framebuffer fb0, aka the mounted display device, and map it's address
@@ -227,7 +281,9 @@ void init_graphics() {
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
-	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width
+	res_height = display_res.yres_virtual;								// display height resolution
+	res_width = (display_depth.line_length/(sizeof *display_addr));		// display width resolution
+	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width (w/ bit depth)
 
 	// map the opened display for manipulation, starting at offset 0 (map everything)
 	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_display, 0);
