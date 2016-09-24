@@ -1,3 +1,5 @@
+#include "library.c"
+
 typedef unsigned short color_t;
 
 void clear_screen();
@@ -32,11 +34,11 @@ int main(int argc, char** argv)
 		else if(key == 'a') x-=10;
 		else if(key == 'd') x+=10;
 
-		//draw a blue rectangle
-		draw_line(x, y, x+20, y, 15);
-		draw_line(x+20, y, x+20, y+20, 15);
-		draw_line(x+20, y+20, x, y+20, 15);
-		draw_line(x, y+20, x, y, 15);
+		//draw a red rectangle
+		draw_line(x, y, x+20, y, 0xF800);
+		draw_line(x+20, y, x+20, y+20, 0xF800);
+		draw_line(x+20, y+20, x, y+20, 0xF800);
+		draw_line(x, y+20, x, y, 0xF800);
 		sleep_ms(20);
 	} while(key != 'q');
 

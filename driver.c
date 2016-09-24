@@ -1,4 +1,5 @@
 #include "library.c"
+#include "square.c"
 
 /* REFERENCES
 	TERMIOS: https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
@@ -96,7 +97,7 @@ include a driver.c that runs everything
 	DRAW A STRING WITH THE SPECIFIED COLOR AT THE LOCATION (X,Y); THE UPPER-LEFT CORNER OF THE FIRST LETTER.
 
 	[ ] Draw starting with location (x,y) which is the upper-left corner of the first letter
-		Each letter is 8x26 (widthxheight) enchoded as 16 1-byte integers
+		Each letter is 8x26 (WIDTHxHEIGHT) encoded as 16 1-byte integers
 	[ ] Use the Apple font encoded into an array in iso_font.h 
 	[ ] Use the array defined in iso_font.h
 		- e.g. The 16 values for the letter 'A' (ASCII 65) is found at indices (65)*(16+0) to (65)*(16+15)
@@ -117,13 +118,16 @@ int main() {
 			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
 		}
 	}
+
 	sleep_ms(1000);
+
 	color = 0x17E0;
 	for (y=0; y<480; y++) {
 		for (x=0; x<640; x++) {
 			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
 		}
 	}
+
 	sleep_ms(1000);
 
 	int x1, x2, y1, y2;
@@ -132,7 +136,8 @@ int main() {
 	color = 0xF800;
 	draw_line(x1, y1, x2, y2, RMASK(color) | GMASK(color) | BMASK(color));
 
-	//exit_graphics();
+	clear_screen();
+	exit_graphics();
 
 	/* DEBUG */
 	//printf("(y * display_res.xres_virtual) + x: %d\n", ((479 * display_res.xres_virtual) + 639));

@@ -131,8 +131,8 @@ void init_graphics() {
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
-	res_height = display_res.yres_virtual;								// display height resolution
-	res_width = (display_depth.line_length/(sizeof *display_addr));		// display width resolution
+	res_height = display_res.yres_virtual;								// display-height resolution
+	res_width = (display_depth.line_length/(sizeof *display_addr));		// display-width resolution
 	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width (w/ bit depth)
 
 	// map the opened display for manipulation, starting at offset 0 (map everything)
@@ -195,15 +195,16 @@ void exit_graphics() {
 		   NFDS=1        NFDS=2        NFDS=3
 */
 char getkey() {
-	char c = '\0';			// default return value of NULL
+	char c = 'q';			// default return value of NULL
 
 	fd_set read_fds;		// create file descriptor set for STDIN
 	FD_ZERO(&read_fds);		// init read_fds to zero (CLEAR)
 	FD_SET(0, &read_fds);	// add read_fds to STDIN (0) aka keyboard fds
 
-	struct timeval time_to_wait = {1, 0};
+	struct timeval time_to_wait = {3, 0};
 	if (select(1, &read_fds, NULL, NULL, &time_to_wait)) {
 		read(0, &c, 1); 	// get first character from STDIN
+		//read(&read_fds, &c, 1);
 	}
 
 	return c;
