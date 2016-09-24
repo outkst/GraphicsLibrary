@@ -8,8 +8,6 @@
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
 
-//#include <stdio.h>		/* DEBUG */
-
 /*
 	[      RED     ]  [      GREEN      ]  [     BLUE     ]
 	[15-14-13-12-11]  [10-09-08-07-06-05]  [04-03-02-01-00]
@@ -35,7 +33,7 @@ void sleep_ms(long ms);
 #define BMASK(c) (c & 0x101F)	// Blue mask
 #define GMASK(c) (c & 0x17E0)	// Green mask
 #define RMASK(c) (c & 0xF800) 	// Red mask
-#define TRUE 1					// fuck C
+#define TRUE 1					// fucking C
 
 /*
 	lazy absolute value function
@@ -139,10 +137,10 @@ void init_graphics() {
 	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_display, 0);
 
 	struct termios terminal_settings;
-	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
-	terminal_settings.c_lflag &= ~(ICANON);			// unset ICANON flag
-	terminal_settings.c_lflag &= ~(ECHO);			// unset ECHO flag
-	ioctl(fd_display, TCSETS, &terminal_settings);	// set terminal settings
+	ioctl(1, TCGETS, &terminal_settings);	// get terminal settings from STDOUT
+	terminal_settings.c_lflag &= ~(ICANON);	// unset ICANON flag
+	terminal_settings.c_lflag &= ~(ECHO);	// unset ECHO flag
+	ioctl(1, TCSETS, &terminal_settings);	// set terminal settings of STDOUT
 }
 
 /*
@@ -152,17 +150,17 @@ void init_graphics() {
 	int munmap(void *ADDR, size_t LENGTH);	
 */
 void exit_graphics() {
-	clear_screen();									// clear the screen and start cleaning up
+	clear_screen();							// clear the screen and start cleaning up
 
-	munmap(display_addr, screen_size);				// remove all mappings that contain pages in given address space
+	munmap(display_addr, screen_size);		// remove all mappings that contain pages in given address space
 
 	struct termios terminal_settings;
-	ioctl(fd_display, TCGETS, &terminal_settings);	// get terminal settings
-	terminal_settings.c_lflag &= ICANON;			// set ICANON flag
-	terminal_settings.c_lflag &= ECHO;				// set ECHO flag
-	ioctl(fd_display, TCSETS, &terminal_settings);	// set terminal settings
+	ioctl(1, TCGETS, &terminal_settings);	// get terminal settings
+	terminal_settings.c_lflag &= ICANON;	// set ICANON flag
+	terminal_settings.c_lflag &= ECHO;		// set ECHO flag
+	ioctl(1, TCSETS, &terminal_settings);	// set terminal settings
 
-	close(fd_display);								// close the display
+	close(fd_display);						// close the display
 }
 
 
@@ -195,16 +193,25 @@ void exit_graphics() {
 		   NFDS=1        NFDS=2        NFDS=3
 */
 char getkey() {
-	char c = 'q';			// default return value of NULL
+	int c = '\0';			// default return value of NULL
+	int ready;
 
-	fd_set read_fds;		// create file descriptor set for STDIN
+	fd_set read_fds;
 	FD_ZERO(&read_fds);		// init read_fds to zero (CLEAR)
 	FD_SET(0, &read_fds);	// add read_fds to STDIN (0) aka keyboard fds
 
-	struct timeval time_to_wait = {3, 0};
-	if (select(1, &read_fds, NULL, NULL, &time_to_wait)) {
-		read(0, &c, 1); 	// get first character from STDIN
-		//read(&read_fds, &c, 1);
+	struct timeval time_to_wait = {0, 0};
+	ready = select(1, &read_fds, NULL, NULL, &time_to_wait);
+
+	if (ready == -1) {
+		//printf("Error\n");
+
+	} else if (ready) {
+		//printf("Data ready\n");
+		read(1, &c, sizeof(char));	//readin int, but read size of char
+		//printf("key: %d %c", c, c);
+	} else {
+		//printf("Nothing to be read...\n");
 	}
 
 	return c;

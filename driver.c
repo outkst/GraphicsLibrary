@@ -1,8 +1,11 @@
 #include "library.c"
-#include "square.c"
+
+//#include "square.c"
 
 /* REFERENCES
-	TERMIOS: https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+	READ():		https://linux.die.net/man/2/read
+	SELECT():	https://linux.die.net/man/2/select
+	TERMIOS:	https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
 */
 
 /* 
@@ -110,6 +113,22 @@ include a driver.c that runs everything
 
 int main() {
 	init_graphics();
+	char key;
+
+	do
+	{
+
+		key = getkey();
+
+		//printf("key pressed: %c", key);	
+
+		if (key) {
+			if (key == 'w' || key == 's' || key == 'a' || key == 'd') {
+				//printf("key pressed: %c", key);
+			}
+		}
+		sleep_ms(20);
+	} while(key != 'q');
 
 	int x, y;
 	color_t color = 0xF800;
