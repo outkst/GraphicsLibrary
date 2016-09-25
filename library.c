@@ -8,11 +8,25 @@
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
 
+/* 
+	Linux Graphics Library
+
+	Joe Meszar (jwm54@pitt.edu)
+	CS1550 Project 1 (FALL 2016)
+
+	REFERENCES
+	----------
+	READ():		https://linux.die.net/man/2/read
+	SELECT():	https://linux.die.net/man/2/select
+	TERMIOS:	https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+	DRAW_LINE(): https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
+*/
+
+typedef unsigned short color_t;			// store RGB color
 /*
 	[      RED     ]  [      GREEN      ]  [     BLUE     ]
 	[15-14-13-12-11]  [10-09-08-07-06-05]  [04-03-02-01-00]
 */
-typedef unsigned short color_t;			// store RGB color
 
 int fd_display;							// reference to display
 int res_height, res_width;				// store display-height and width calculation
@@ -35,24 +49,6 @@ void sleep_ms(long ms);
 #define RMASK(c) (c & 0xF800) 	// Red mask
 #define TRUE 1					// fucking C
 
-/*
-	lazy absolute value function
-*/
-int abs(int x) {
-	if (x < 0) { x = -x; }
-	return x;
-}
-
-
-/*
-	Clear the screen by writing ANSI ESCAPE code "\033[2J".
-	The screen is STDOUT aka FD=1
-
-	ssize_t write(int FD, const void *BUF, size_t COUNT);
-*/
-void clear_screen() {
-	write(1, "\033[2J", 8);
-}
 
 /*
 	Using Bresenham's Algorithm for drawing a straight line
@@ -93,8 +89,8 @@ void draw_line(int x1, int y1, int x2, int y2, color_t c) {
 	Manipulate the display as a ROW MAJOR ORDER array. Inputs will be wrapped around
 	the display using modulus calculation, just to keep from segmentation faults.
 
-	To calculate each row, take the line length divided by the size
-	in bytes dedicated for each pixel (color_t).
+	To calculate each row, take the line length divided by the size in bytes
+	dedicated for each pixel (color_t). This is represented as res_width.
 */
 void draw_pixel(int x, int y, color_t color) {
 	if (x < 0 || x >= res_width) { x = abs(x % res_width); }	// keep within x boundary
@@ -102,10 +98,12 @@ void draw_pixel(int x, int y, color_t color) {
 
 	display_addr[(y * res_width) + x] = color;
 }
+
+
 /*
 	Will get the framebuffer fb0, aka the mounted display device, and map it's address
 	space for further manipulation. This happens by getting the resolution and bit-depth
-	associated with the given display device and mapping into an array of LENGTHxWIDTH.
+	associated with the given display device and mapping into an array of LENGTHxWIDTHxBITDEPTH.
 
 	The terminal is also manipulated by unsetting the CANONICAL and ECHO flags. This is done
 	to make the input available immediately (without the user having to type a line-delimiter 
@@ -136,30 +134,20 @@ void init_graphics() {
 	// map the opened display for manipulation, starting at offset 0 (map everything)
 	display_addr = mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_display, 0);
 
-	struct termios terminal_settings;
-	ioctl(1, TCGETS, &terminal_settings);	// get terminal settings from STDOUT
-	terminal_settings.c_lflag &= ~(ICANON);	// unset ICANON flag
-	terminal_settings.c_lflag &= ~(ECHO);	// unset ECHO flag
-	ioctl(1, TCSETS, &terminal_settings);	// set terminal settings of STDOUT
+	set_terminal_settings(0);	// turn ICANON and ECHO terminal flags OFF
 }
 
+
 /*
-	Unmap the display device, set the terminal back, and then close the display
-	file descriptor.
+	Clear the screen, reset terminal settings, unmap the display,
+	and then close the display file descriptor.
 
 	int munmap(void *ADDR, size_t LENGTH);	
 */
 void exit_graphics() {
-	clear_screen();							// clear the screen and start cleaning up
-
+	clear_screen();							// clear the screen
+	set_terminal_settings(1);				// turn ICANON and ECHO terminal flags back on
 	munmap(display_addr, screen_size);		// remove all mappings that contain pages in given address space
-
-	struct termios terminal_settings;
-	ioctl(1, TCGETS, &terminal_settings);	// get terminal settings
-	terminal_settings.c_lflag &= ICANON;	// set ICANON flag
-	terminal_settings.c_lflag &= ECHO;		// set ECHO flag
-	ioctl(1, TCSETS, &terminal_settings);	// set terminal settings
-
 	close(fd_display);						// close the display
 }
 
@@ -199,9 +187,12 @@ char getkey() {
 	FD_ZERO(&read_fds);		// init read_fds to zero (CLEAR)
 	FD_SET(0, &read_fds);	// add read_fds to STDIN (0) aka keyboard fds
 
-	struct timeval time_to_wait = {0, 0};
-	if (select(1, &read_fds, NULL, NULL, &time_to_wait) {
-		read(1, &c, sizeof(char));	//read int, but read size of char
+	struct timeval time_to_wait;	// no-wait (0,0) AKA polling mode to
+	time_to_wait.tv_sec = 0;		// 	quickly see if the device can
+    time_to_wait.tv_usec = 0;		//	be READ without blocking.
+
+	if (select(1, &read_fds, NULL, NULL, &time_to_wait)) {
+		read(1, &c, sizeof(char));	//read into an int the size of one character
 	}
 
 	return c;
@@ -209,10 +200,50 @@ char getkey() {
 
 
 /*
+	Lazy absolute value function
+*/
+int abs(int x) {
+	if (x < 0) { x = -x; }
+	return x;
+}
+
+
+/*
+	Clear the screen by writing ANSI ESCAPE code "\033[2J".
+	The screen is STDOUT aka FD=1
+
+	ssize_t write(int FD, const void *BUF, size_t COUNT);
+*/
+void clear_screen() {
+	write(1, "\033[2J", 8);
+}
+
+
+/*
+	Grabs the terminal settings and turns ICANON and ECHO flags
+	ON or OFF, depending on the input parameter "on".
+*/
+void set_terminal_settings(int on) {
+	struct termios terminal_settings;
+	ioctl(1, TCGETS, &terminal_settings);		// get terminal settings from STDOUT
+
+	if (on) {
+		terminal_settings.c_lflag |= ICANON;	// set ICANON flag
+		terminal_settings.c_lflag |= ECHO;		// set ECHO flag
+	} else {
+		terminal_settings.c_lflag &= ICANON;	// unset ICANON flag
+		terminal_settings.c_lflag &= ECHO;		// unset ECHO flag
+	}
+
+	ioctl(1, TCSETS, &terminal_settings);		// set new terminal settings of STDOUT
+}
+
+
+/*
 	Sleep for the given amount of milliseconds. It might sleep for less time because
 	the cpu may issue an interrupt. In this case, we will not care about it and just
 	return. (NULL) parameter used to not care about the interrupt. Otherwise, the
-	time remaining will be held in this TIMESPEC parameter.
+	time remaining will be held in the TIMESPEC *REM parameter.
 
 	struct timespec {
 	    time_t tv_sec;		// seconds
