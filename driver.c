@@ -134,7 +134,7 @@ int main() {
 	}
 	sleep_ms(5000);
 
-	color = 0x101F; // BLUE
+	color = 0x001F; // BLUE
 	for (x=639; x>=0; x--) {
 		for (y=479; y>=0; y--) {
 			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
