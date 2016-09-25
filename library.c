@@ -7,6 +7,7 @@
 #include <sys/mman.h>	/* PROT_READ PROT_WRITE */
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
+#include "iso_font.h"
 
 /* 
 	Linux Graphics Library
@@ -16,10 +17,10 @@
 
 	REFERENCES
 	----------
-	READ():		https://linux.die.net/man/2/read
-	SELECT():	https://linux.die.net/man/2/select
-	TERMIOS:	https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
-	DRAW_LINE(): https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
+	READ():			https://linux.die.net/man/2/read
+	SELECT():		https://linux.die.net/man/2/select
+	TERMIOS:		https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+	DRAW_LINE():	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
 */
 
 typedef unsigned short color_t;			// store RGB color
