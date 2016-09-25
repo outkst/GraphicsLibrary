@@ -35,6 +35,7 @@ color_t *display_addr;					// starting address of display
 struct fb_var_screeninfo display_res;	// resolution for the mapped display
 struct fb_fix_screeninfo display_depth;	// bit depth for the mapped display
 
+int abs(int value);
 void clear_screen();
 void draw_pixel(int x, int y, color_t color);
 void draw_line(int x1, int y1, int x2, int y2, color_t c);
@@ -42,62 +43,13 @@ void draw_text(int x, int y, const char *text, color_t c);
 void init_graphics();
 void exit_graphics();
 char getkey();
+void set_terminal_settings(int on);
 void sleep_ms(long ms);
 
 #define BMASK(c) (c & 0x101F)	// Blue mask
 #define GMASK(c) (c & 0x17E0)	// Green mask
 #define RMASK(c) (c & 0xF800) 	// Red mask
 #define TRUE 1					// fucking C
-
-
-/*
-	Using Bresenham's Algorithm for drawing a straight line
-	between two given points.
-
-	NOTE: The algorithm has a "standard error" associated 
-	with it. So when lines get drawn they will be approximate
-	per-pixel locations.
-
-	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
-*/
-void draw_line(int x1, int y1, int x2, int y2, color_t c) {
-
-	// keep the coordinates within the bounds of the display.
-	if (x1 < 0 || x1 >= res_width) { x1 = abs(x1 % res_width); }
-	if (x2 < 0 || x2 >= res_width) { x1 = abs(x2 % res_width); }
-	if (y1 < 0 || y1 >= res_height) { y1 = abs(y1 % res_height); }
-	if (y2 < 0 || y2 >= res_height) { y2 = abs(y2 % res_height); }
-
-	int dx = abs(x2-x1);						// get destination x length
-	int sx = x1<x2 ? 1 : -1;					// get source x direction
-	int dy = abs(y2-y1);						// get destination y length
-	int sy = y1<y2 ? 1 : -1;					// get source y direction
-	int err = (dx>dy ? dx : -dy)/2, e2;			// determine standard error for line
-
-	while(TRUE) {
-		sleep_ms(1);							// DEBUG
-		draw_pixel(x1, y1, c);					// draw a point of the line
-		if (x1==x2 && y1==y2) break;			// stop when reached the destination point
-		e2 = err;								
-		if (e2 >-dx) { err -= dy; x1 += sx; }	// determine new X point according to standard error
-		if (e2 < dy) { err += dx; y1 += sy; }	// determine new Y point according to standard error
-	}
-}
-
-
-/*
-	Manipulate the display as a ROW MAJOR ORDER array. Inputs will be wrapped around
-	the display using modulus calculation, just to keep from segmentation faults.
-
-	To calculate each row, take the line length divided by the size in bytes
-	dedicated for each pixel (color_t). This is represented as res_width.
-*/
-void draw_pixel(int x, int y, color_t color) {
-	if (x < 0 || x >= res_width) { x = abs(x % res_width); }	// keep within x boundary
-	if (y < 0 || y >= res_height) { y = abs(y % res_height); }	// keep within y boundary	
-
-	display_addr[(y * res_width) + x] = color;
-}
 
 
 /*
@@ -110,13 +62,6 @@ void draw_pixel(int x, int y, color_t color) {
 	character) by unsetting ICANON flag, and to not show any characters the user has typed on the
 	screen by unsetting the ECHO flag.
 
-	struct termios {
-		tcflag_t c_iflag;		// input modes
-    	tcflag_t c_oflag;		// output modes
-    	tcflag_t c_cflag;		// control modes
-    	tcflag_t c_lflag;		// local modes
-    	cc_t c_cc[NCCS];		// control chars
-	}
 	int ioctl(int D, int REQUEST, ...);
 	void *mmap(void *ADDR, size_t lengthint PROT, int FLAGS, int fd, off_t OFFSET);
 */
@@ -181,11 +126,11 @@ void exit_graphics() {
 		   NFDS=1        NFDS=2        NFDS=3
 */
 char getkey() {
-	int c = '\0';			// default return value of NULL
+	int c = '\0';					// default return value of NULL
 
-	fd_set read_fds;		// create file descriptor for our READ operation
-	FD_ZERO(&read_fds);		// init read_fds to zero (CLEAR)
-	FD_SET(0, &read_fds);	// add read_fds to STDIN (0) aka keyboard fds
+	fd_set read_fds;				// create file descriptor for our READ operation
+	FD_ZERO(&read_fds);				// init read_fds to zero (CLEAR)
+	FD_SET(0, &read_fds);			// add read_fds to STDIN (0) aka keyboard fds
 
 	struct timeval time_to_wait;	// no-wait (0,0) AKA polling mode to
 	time_to_wait.tv_sec = 0;		// 	quickly see if the device can
@@ -200,11 +145,61 @@ char getkey() {
 
 
 /*
+	Manipulate the display as a ROW MAJOR ORDER array. Inputs will be wrapped around
+	the display using modulus calculation, just to keep from segmentation faults.
+
+	To calculate each row, take the line length divided by the size in bytes
+	dedicated for each pixel (color_t). This is represented as res_width.
+*/
+void draw_pixel(int x, int y, color_t color) {
+	if (x < 0 || x >= res_width) { x = abs(x % res_width); }	// keep within x boundary
+	if (y < 0 || y >= res_height) { y = abs(y % res_height); }	// keep within y boundary	
+
+	display_addr[(y * res_width) + x] = color;
+}
+
+
+/*
+	Using Bresenham's Algorithm for drawing a straight line
+	between two given points.
+
+	NOTE: The algorithm has a "standard error" associated 
+	with it. So when lines get drawn they will be approximate
+	per-pixel locations.
+
+	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
+*/
+void draw_line(int x1, int y1, int x2, int y2, color_t c) {
+
+	// keep the coordinates within the bounds of the display.
+	if (x1 < 0 || x1 >= res_width) { x1 = abs(x1 % res_width); }
+	if (x2 < 0 || x2 >= res_width) { x1 = abs(x2 % res_width); }
+	if (y1 < 0 || y1 >= res_height) { y1 = abs(y1 % res_height); }
+	if (y2 < 0 || y2 >= res_height) { y2 = abs(y2 % res_height); }
+
+	int dx = abs(x2-x1);						// get destination x length
+	int sx = x1<x2 ? 1 : -1;					// get source x direction
+	int dy = abs(y2-y1);						// get destination y length
+	int sy = y1<y2 ? 1 : -1;					// get source y direction
+	int err = (dx>dy ? dx : -dy)/2, e2;			// determine standard error for line
+
+	while(1) {
+		//sleep_ms(1);							// DEBUG
+		draw_pixel(x1, y1, c);					// draw a point of the line
+		if (x1==x2 && y1==y2) break;			// stop when reached the destination point
+		e2 = err;								
+		if (e2 >-dx) { err -= dy; x1 += sx; }	// determine new X point according to standard error
+		if (e2 < dy) { err += dx; y1 += sy; }	// determine new Y point according to standard error
+	}
+}
+
+
+/*
 	Lazy absolute value function
 */
-int abs(int x) {
-	if (x < 0) { x = -x; }
-	return x;
+int abs(int value) {
+	if (value < 0) { value = -value; }
+	return value;
 }
 
 
@@ -222,6 +217,30 @@ void clear_screen() {
 /*
 	Grabs the terminal settings and turns ICANON and ECHO flags
 	ON or OFF, depending on the input parameter "on".
+
+	struct termios {
+		tcflag_t c_iflag;		// input modes
+    	tcflag_t c_oflag;		// output modes
+    	tcflag_t c_cflag;		// control modes
+    	tcflag_t c_lflag;		// local modes  (*)
+    	cc_t c_cc[NCCS];		// control chars
+	}
+
+	(*) c_lflag local modes:
+
+	ICANON - Perhaps the most important bit in c_lflag is the ICANON bit. Enabling it 
+		enables "canonical" mode – also known as "line editing" mode. When ICANON is 
+		set, the terminal buffers a line at a time, and enables line editing. Without 
+		ICANON, input is made available to programs immediately (this is also known 
+		as "cbreak" mode).
+
+	ECHO - Controls whether input is immediately re-echoed as output. It is independent 
+		of ICANON, although they are often turned on and off together. When passwd 
+		prompts for your password, your terminal is in canonical mode, but ECHO is disabled.
+
+	ISIG - Controls whether ^C and ^Z (and friends) generate signals or not. When 
+		unset, they are passed directly through as characters, without generating signals 
+		to the application.
 */
 void set_terminal_settings(int on) {
 	struct termios terminal_settings;
@@ -252,6 +271,8 @@ void set_terminal_settings(int on) {
 	int nanosleep(const struct timespec *REQ, struct timespec *REM);
 */
 void sleep_ms(long ms) {
-	struct timespec req = {0, ms*1000000};	// milliseconds to nanoseconds
-	nanosleep(&req, NULL); 					// (NULL) says don't worry about interrupts
+	struct timespec req;		
+	req.tv_sec = 0;				// sleep for zero seconds
+	req.tv_nsec = ms*1000000;	// convert milliseconds to nanoseconds
+	nanosleep(&req, NULL);		// (NULL) says to not worry about interrupts
 }

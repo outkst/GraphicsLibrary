@@ -112,48 +112,75 @@ include a driver.c that runs everything
 */
 
 int main() {
-	init_graphics();
 	char key;
-
-	do
-	{
-
-		key = getkey();
-
-		//printf("key pressed: %c", key);	
-
-		if (key) {
-			if (key == 'w' || key == 's' || key == 'a' || key == 'd') {
-				//printf("key pressed: %c", key);
-			}
-		}
-		sleep_ms(20);
-	} while(key != 'q');
-
 	int x, y;
-	color_t color = 0xF800;
+	color_t color;
+
+	init_graphics();
+
+	color = 0xF800;	// RED
 	for (x=0; x<640; x++) {
 		for (y=0; y<480; y++) {
 			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
 		}
 	}
+	sleep_ms(5000);
 
-	sleep_ms(1000);
-
-	color = 0x17E0;
+	color = 0x17E0; // GREEN
 	for (y=0; y<480; y++) {
 		for (x=0; x<640; x++) {
 			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
 		}
 	}
+	sleep_ms(5000);
 
-	sleep_ms(1000);
+	color = 0x101F; // BLUE
+	for (x=639; x>=0; x--) {
+		for (y=479; y>=0; y--) {
+			draw_pixel(x, y, RMASK(color) | GMASK(color) | BMASK(color));
+		}
+	}
+	sleep_ms(5000);
 
-	int x1, x2, y1, y2;
-	x1 = 100; y1 = 200;
-	x2 = 839; y2 = 779;
-	color = 0xF800;
-	draw_line(x1, y1, x2, y2, RMASK(color) | GMASK(color) | BMASK(color));
+	// // d
+	// int x1, x2, y1, y2;
+	// x1 = 100; y1 = 200;
+	// x2 = 839; y2 = 779;
+	// color = 0xF800;
+	// draw_line(x1, y1, x2, y2, RMASK(color) | GMASK(color) | BMASK(color));
+
+	clear_screen();
+
+	write(1, "W", 4);
+	write(1, "A", 4);
+	write(1, "S", 4);
+	write(1, "D", 4);
+
+
+	do
+	{
+		key = getkey();
+
+		//printf("key pressed: %c", key);	
+
+		if (key) {
+			if (key=='w') { // diagonal: top-left to bottom-right
+				draw_line(0, 0, 639, 479, RMASK(color) | GMASK(color) | BMASK(color));
+				color = 0xF800;
+			} else if (key == 's') { // diagonal: top-right to bottom-left
+				draw_line(639, 0, 0, 479, RMASK(color) | GMASK(color) | BMASK(color));
+				color = 0x101F;
+			} else if (key == 'a') { // straight across the middle left-to-right
+				draw_line(0, 240, 639, 240, RMASK(color) | GMASK(color) | BMASK(color));
+				color = 0x17E0;
+			} else if (key == 'd') { // straight down the middle top-to-bottom
+				draw_line(320, 0, 320, 479, RMASK(color) | GMASK(color) | BMASK(color));
+				color = 0xFFFF;
+			}
+		}
+
+		sleep_ms(20);
+	} while(key != 'q');
 
 	exit_graphics();
 
