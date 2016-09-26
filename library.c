@@ -52,7 +52,6 @@ void sleep_ms(long ms);
 #define BMASK(c) (c & 0x001F)	// Blue mask
 #define GMASK(c) (c & 0x17E0)	// Green mask
 #define RMASK(c) (c & 0xF800) 	// Red mask
-#define TRUE 1					// fucking C
 
 
 /*

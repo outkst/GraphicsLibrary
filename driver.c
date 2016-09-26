@@ -143,6 +143,14 @@ int main() {
 	}
 	sleep_ms(5000);
 
+	color = 0x0000; 					// BLACK SCREEN
+	for (y=479; y>=0; y--) {
+		for (x=639; x>=0; x--) {
+			draw_pixel(x, y, color);
+		}
+	}
+	sleep_ms(5000);
+
 	clear_screen();						// CLEAR
 
 	// PRINT DIRECTIONS
@@ -154,27 +162,28 @@ int main() {
 	write(1, ")", 4);
 
 	// LOOP UNTIL USER PRESSES THE 'Q' KEY
+	color = 0xFFFF;
 	do
 	{
 		key = getkey();
 
 		if (key) {
-			if (key=='w') { // diagonal: top-left to bottom-right
+			if (key=='w') { 						// diagonal: top-left to bottom-right
 				draw_text(10, 10, string, color);
 				draw_line(0, 0, 639, 479, color);
 				color = 0xF800;
 
-			} else if (key == 's') { // diagonal: top-right to bottom-left
+			} else if (key == 's') { 				// diagonal: top-right to bottom-left
 				draw_text(550, 10, string, color);
 				draw_line(639, 0, 0, 479, color);
 				color = 0x001F;
 
-			} else if (key == 'a') { // straight across the middle left-to-right
+			} else if (key == 'a') { 				// straight across the middle left-to-right
 				draw_text(10, 240, string, color);
 				draw_line(0, 240, 639, 240, color);
 				color = 0x17E0;
 
-			} else if (key == 'd') { // straight down the middle top-to-bottom
+			} else if (key == 'd') { 				// straight down the middle top-to-bottom
 				draw_text(300, 460, string, color);
 				draw_line(320, 0, 320, 479, color);
 				color = 0xFFFF;
