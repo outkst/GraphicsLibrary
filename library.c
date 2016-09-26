@@ -7,7 +7,7 @@
 #include <sys/mman.h>	/* PROT_READ PROT_WRITE */
 #include <sys/stat.h>	/* open() */
 #include <sys/types.h>	/* open() select() */
-#include "iso_font.h"
+#include "iso_font.h"	/* font file */
 
 /* 
 	Linux Graphics Library

@@ -1,25 +1,23 @@
 #include "library.c"
-//#include "iso_font.h"
-#include <stdio.h>		/* DEBUG */
-
-//#include "square.c"
-
-/* REFERENCES
-	READ():		https://linux.die.net/man/2/read
-	SELECT():	https://linux.die.net/man/2/select
-	TERMIOS:	https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
-*/
 
 /* 
 	Linux Graphics Library
 
 	Joe Meszar (jwm54@pitt.edu)
 	CS1550 Project 1 (FALL 2016)
+
+	REFERENCES
+	----------
+	READ():			https://linux.die.net/man/2/read
+	SELECT():		https://linux.die.net/man/2/select
+	TERMIOS:		https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+	DRAW_LINE():	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
+	BIT SHIFT:		https://stackoverflow.com/a/26230537
 */
 
 /*
-Zip project into USERNAME-project1.tar.gz and submit to ~jrmst106/submit/1550
-include a driver.c that runs everything
+[ ] Zip project into USERNAME-project1.tar.gz and submit to ~jrmst106/submit/1550
+	[ ] include a driver.c that runs everything
 
 [X] init_graphics()
 	
