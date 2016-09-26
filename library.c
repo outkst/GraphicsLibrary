@@ -21,6 +21,7 @@
 	SELECT():		https://linux.die.net/man/2/select
 	TERMIOS:		https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
 	DRAW_LINE():	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
+	BIT SHIFT:		https://stackoverflow.com/a/26230537
 */
 
 typedef unsigned short color_t;			// store RGB color
@@ -41,6 +42,7 @@ void clear_screen();
 void draw_pixel(int x, int y, color_t color);
 void draw_line(int x1, int y1, int x2, int y2, color_t c);
 void draw_text(int x, int y, const char *text, color_t c);
+void draw_char(int x, int y, const int c, color_t color);
 void init_graphics();
 void exit_graphics();
 char getkey();
@@ -138,7 +140,7 @@ char getkey() {
     time_to_wait.tv_usec = 0;		//	be READ without blocking.
 
 	if (select(1, &read_fds, NULL, NULL, &time_to_wait)) {
-		read(1, &c, sizeof(char));	//read into an int the size of one character
+		read(0, &c, sizeof(char));	//read into an int the size of one character
 	}
 
 	return c;
@@ -156,7 +158,7 @@ void draw_pixel(int x, int y, color_t color) {
 	if (x < 0 || x >= res_width) { x = abs(x % res_width); }	// keep within x boundary
 	if (y < 0 || y >= res_height) { y = abs(y % res_height); }	// keep within y boundary	
 
-	display_addr[(y * res_width) + x] = color;
+	display_addr[(y * res_width) + x] = RMASK(color) | GMASK(color) | BMASK(color);
 }
 
 
@@ -191,6 +193,39 @@ void draw_line(int x1, int y1, int x2, int y2, color_t c) {
 		e2 = err;								
 		if (e2 >-dx) { err -= dy; x1 += sx; }	// determine new X point according to standard error
 		if (e2 < dy) { err += dx; y1 += sy; }	// determine new Y point according to standard error
+	}
+}
+
+
+/* 
+	Loop through the given text and print out each character according
+	to the X and Y coordinates supplied, using the color_t color supplied.
+
+	Each character is printed pixel-by-pixel using helper function draw_char().
+*/
+void draw_text(int x, int y, const char *text, color_t c) {
+	int pos = 0;
+	int cur_char;
+	while ((cur_char = text[pos++]) != '\0') {	// loop until reach NULL terminator
+		draw_char(x, y, cur_char, c);
+		x+=10;									// move in front of next character (with 2-pixel spacing)
+	}
+}
+
+
+/*
+	Prints out the given character using the iso_font.h character map.
+*/
+void draw_char(int x, int y, const int c, color_t color) {
+	int row, col, char_pixel;
+	for (row=0; row<16; row++) {					// 16 rows per character
+		char_pixel = iso_font[(c*16) + row];		// get current pixel data
+
+		for (col=0; col<8; col++) {					// 8 columns per row
+			if ((char_pixel >> col) & 1) {			// bit shift to determine if pixel needs printing
+				draw_pixel((x+col), (y+row), color);
+			}
+		}
 	}
 }
 
