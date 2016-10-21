@@ -1,7 +1,7 @@
-#include <fcntl.h>		/* open() */
+#include <fcntl.h>	/* open() */
 #include <termios.h>	/* TCGETS TCSETS */
-#include <time.h>		/* nanosleep() */
-#include <unistd.h>		/* read() write() */
+#include <time.h>	/* nanosleep() */
+#include <unistd.h>	/* read() write() */
 #include <linux/fb.h>	/* FB_VAR_SCREENINFO FB_FIX_SCREENINFO */
 #include <sys/ioctl.h>	/* ioctl() */
 #include <sys/mman.h>	/* PROT_READ PROT_WRITE */
@@ -17,23 +17,23 @@
 
 	REFERENCES
 	----------
-	READ():			https://linux.die.net/man/2/read
-	SELECT():		https://linux.die.net/man/2/select
-	TERMIOS:		https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+	READ():		https://linux.die.net/man/2/read
+	SELECT():	https://linux.die.net/man/2/select
+	TERMIOS:	https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
 	DRAW_LINE():	https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
-	BIT SHIFT:		https://stackoverflow.com/a/26230537
+	BIT SHIFT:	https://stackoverflow.com/a/26230537
 */
 
-typedef unsigned short color_t;			// store RGB color
+typedef unsigned short color_t;		// store RGB color
 /*
 	[      RED     ]  [      GREEN      ]  [     BLUE     ]
 	[15-14-13-12-11]  [10-09-08-07-06-05]  [04-03-02-01-00]
 */
 
-int fd_display;							// reference to display
-int res_height, res_width;				// store display-height and width calculation
-size_t screen_size;						// number of bytes of entire display
-color_t *display_addr;					// starting address of display
+int fd_display;				// reference to display
+int res_height, res_width;		// store display-height and width calculation
+size_t screen_size;			// number of bytes of entire display
+color_t *display_addr;			// starting address of display
 struct fb_var_screeninfo display_res;	// resolution for the mapped display
 struct fb_fix_screeninfo display_depth;	// bit depth for the mapped display
 
@@ -68,13 +68,13 @@ void sleep_ms(long ms);
 	void *mmap(void *ADDR, size_t lengthint PROT, int FLAGS, int fd, off_t OFFSET);
 */
 void init_graphics() {
-	clear_screen();												// clear the terminal
-	fd_display = open("/dev/fb0", O_RDWR);						// open display (framebuffer fb0)
+	clear_screen();							// clear the terminal
+	fd_display = open("/dev/fb0", O_RDWR);				// open display (framebuffer fb0)
 
 	ioctl(fd_display, FBIOGET_VSCREENINFO, &display_res);		// get display resolution
 	ioctl(fd_display, FBIOGET_FSCREENINFO, &display_depth);		// get display bit-depth
 
-	res_height = display_res.yres_virtual;								// display-height resolution
+	res_height = display_res.yres_virtual;					// display-height resolution
 	res_width = (display_depth.line_length/(sizeof *display_addr));		// display-width resolution
 	screen_size = display_res.yres_virtual * display_depth.line_length;	// length x width (w/ bit depth)
 
@@ -92,10 +92,10 @@ void init_graphics() {
 	int munmap(void *ADDR, size_t LENGTH);	
 */
 void exit_graphics() {
-	clear_screen();							// clear the screen
-	set_terminal_settings(1);				// turn ICANON and ECHO terminal flags back on
+	clear_screen();					// clear the screen
+	set_terminal_settings(1);			// turn ICANON and ECHO terminal flags back on
 	munmap(display_addr, screen_size);		// remove all mappings that contain pages in given address space
-	close(fd_display);						// close the display
+	close(fd_display);				// close the display
 }
 
 
@@ -128,15 +128,15 @@ void exit_graphics() {
 		   NFDS=1        NFDS=2        NFDS=3
 */
 char getkey() {
-	int c = '\0';					// default return value of NULL
+	int c = '\0';				// default return value of NULL
 
-	fd_set read_fds;				// create file descriptor for our READ operation
-	FD_ZERO(&read_fds);				// init read_fds to zero (CLEAR)
+	fd_set read_fds;			// create file descriptor for our READ operation
+	FD_ZERO(&read_fds);			// init read_fds to zero (CLEAR)
 	FD_SET(0, &read_fds);			// add read_fds to STDIN (0) aka keyboard fds
 
-	struct timeval time_to_wait;	// no-wait (0,0) AKA polling mode to
+	struct timeval time_to_wait;		// no-wait (0,0) AKA polling mode to
 	time_to_wait.tv_sec = 0;		// 	quickly see if the device can
-    time_to_wait.tv_usec = 0;		//	be READ without blocking.
+    time_to_wait.tv_usec = 0;			//	be READ without blocking.
 
 	if (select(1, &read_fds, NULL, NULL, &time_to_wait)) {
 		read(0, &c, sizeof(char));	//read into an int the size of one character
@@ -179,16 +179,16 @@ void draw_line(int x1, int y1, int x2, int y2, color_t c) {
 	if (y1 < 0 || y1 >= res_height) { y1 = abs(y1 % res_height); }
 	if (y2 < 0 || y2 >= res_height) { y2 = abs(y2 % res_height); }
 
-	int dx = abs(x2-x1);						// get destination x length
-	int sx = x1<x2 ? 1 : -1;					// get source x direction
-	int dy = abs(y2-y1);						// get destination y length
-	int sy = y1<y2 ? 1 : -1;					// get source y direction
-	int err = (dx>dy ? dx : -dy)/2, e2;			// determine standard error for line
+	int dx = abs(x2-x1);				// get destination x length
+	int sx = x1<x2 ? 1 : -1;			// get source x direction
+	int dy = abs(y2-y1);				// get destination y length
+	int sy = y1<y2 ? 1 : -1;			// get source y direction
+	int err = (dx>dy ? dx : -dy)/2, e2;		// determine standard error for line
 
 	while(1) {
-		//sleep_ms(1);							// DEBUG
-		draw_pixel(x1, y1, c);					// draw a point of the line
-		if (x1==x2 && y1==y2) break;			// stop when reached the destination point
+		//sleep_ms(1);				// DEBUG
+		draw_pixel(x1, y1, c);			// draw a point of the line
+		if (x1==x2 && y1==y2) break;		// stop when reached the destination point
 		e2 = err;								
 		if (e2 >-dx) { err -= dy; x1 += sx; }	// determine new X point according to standard error
 		if (e2 < dy) { err += dx; y1 += sy; }	// determine new Y point according to standard error
@@ -207,7 +207,7 @@ void draw_text(int x, int y, const char *text, color_t c) {
 	int cur_char;
 	while ((cur_char = text[pos++]) != '\0') {	// loop until reach NULL terminator
 		draw_char(x, y, cur_char, c);
-		x+=10;									// move in front of next character (with 2-pixel spacing)
+		x+=10;					// move in front of next character (with 2-pixel spacing)
 	}
 }
 
@@ -218,9 +218,9 @@ void draw_text(int x, int y, const char *text, color_t c) {
 void draw_char(int x, int y, const int c, color_t color) {
 	int row, col, char_pixel;
 	for (row=0; row<16; row++) {					// 16 rows per character
-		char_pixel = iso_font[(c*16) + row];		// get current pixel data
+		char_pixel = iso_font[(c*16) + row];			// get current pixel data
 
-		for (col=0; col<8; col++) {					// 8 columns per row
+		for (col=0; col<8; col++) {				// 8 columns per row
 			if ((char_pixel >> col) & 1) {			// bit shift to determine if pixel needs printing
 				draw_pixel((x+col), (y+row), color);
 			}
@@ -255,10 +255,10 @@ void clear_screen() {
 
 	struct termios {
 		tcflag_t c_iflag;		// input modes
-    	tcflag_t c_oflag;		// output modes
-    	tcflag_t c_cflag;		// control modes
-    	tcflag_t c_lflag;		// local modes  (*)
-    	cc_t c_cc[NCCS];		// control chars
+    		tcflag_t c_oflag;		// output modes
+    		tcflag_t c_cflag;		// control modes
+    		tcflag_t c_lflag;		// local modes  (*)
+    		cc_t c_cc[NCCS];		// control chars
 	}
 
 	(*) c_lflag local modes:
@@ -283,10 +283,10 @@ void set_terminal_settings(int on) {
 
 	if (on) {
 		terminal_settings.c_lflag |= ICANON;	// set ICANON flag
-		terminal_settings.c_lflag |= ECHO;		// set ECHO flag
+		terminal_settings.c_lflag |= ECHO;	// set ECHO flag
 	} else {
 		terminal_settings.c_lflag &= ICANON;	// unset ICANON flag
-		terminal_settings.c_lflag &= ECHO;		// unset ECHO flag
+		terminal_settings.c_lflag &= ECHO;	// unset ECHO flag
 	}
 
 	ioctl(1, TCSETS, &terminal_settings);		// set new terminal settings of STDOUT
@@ -307,7 +307,7 @@ void set_terminal_settings(int on) {
 */
 void sleep_ms(long ms) {
 	struct timespec req;		
-	req.tv_sec = 0;				// sleep for zero seconds
+	req.tv_sec = 0;			// sleep for zero seconds
 	req.tv_nsec = ms*1000000;	// convert milliseconds to nanoseconds
 	nanosleep(&req, NULL);		// (NULL) says to not worry about interrupts
 }
