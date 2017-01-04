@@ -44,11 +44,11 @@
                 FBIOGET_FSCREENINFO: returns struct fb_fix_screeninfo to determin bit depth
         [X] Determine the bit depth from returned struct fb_fix_screeninfo
         [X] Total size of mmap()'ed file is: fb_var_screeninfo.yres_virtual * fb_fix_screeninfo.line_length
-    [X] Use ioctl() syscall to disable keypress echo which displays the keys are you're typing
+    [X] Use ioctl() syscall to disable keypress echo which displays the keys you are typing
         [X] buffer the keypresses instead using TCGETS and TCSETS
         [X] TCGETS and TCSETS take a struct TERMIOS describing the current terminal settings
         [X] Disable CANONICAL MODE by unsetting the ICANON bit
-        [X] Disable echo'ing by unsetting the ECHO bit
+        [X] Disable echo'ing of keypresses by unsetting the ECHO bit
 
 [X] exit_graphics()
     
@@ -88,9 +88,9 @@
     [X] Use the given X,Y coordinates to scale the base address of the memory-mapped framebuffer using pointer arithmetic
         - The framebuffer is stored in ROW-MAJOR ORDER: first row starts at offset 0
 
-[X] draw_line(int x2, int y2, int X2, int Y2, color_t C)
+[X] draw_line(int X1, int Y1, int X2, int Y2, color_t C)
 
-    USING draw_pixel(), MAKES A LINE FROM (x2,y2) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
+    USING draw_pixel(), MAKES A LINE FROM (X1,Y1) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
 
     [X] Implement Bresenham's algorithm using only integer math.
     [X] Make sure the implmentation works for all valid coordinates and slopes.
@@ -120,7 +120,7 @@ int main() {
 
     init_graphics();
 
-    color = 0xF800;                     // RED SCREEN
+    color = 0xF800;                     // RED SCREEN (left-to-right)
     for (x=0; x<640; x++) {
         for (y=0; y<480; y++) {
             draw_pixel(x, y, color);
@@ -128,7 +128,7 @@ int main() {
     }
     sleep_ms(5000);
 
-    color = 0x17E0;                     // GREEN SCREEN
+    color = 0x17E0;                     // GREEN SCREEN (top-to-bottom)
     for (y=0; y<480; y++) {
         for (x=0; x<640; x++) {
             draw_pixel(x, y, color);
@@ -136,7 +136,7 @@ int main() {
     }
     sleep_ms(5000);
 
-    color = 0x001F;                     // BLUE SCREEN
+    color = 0x001F;                     // BLUE SCREEN (right-to-left)
     for (x=639; x>=0; x--) {
         for (y=479; y>=0; y--) {
             draw_pixel(x, y, color);
@@ -144,7 +144,7 @@ int main() {
     }
     sleep_ms(5000);
 
-    color = 0x0000;                     // BLACK SCREEN
+    color = 0x0000;                     // BLACK SCREEN (bottom-to-top)
     for (y=479; y>=0; y--) {
         for (x=639; x>=0; x--) {
             draw_pixel(x, y, color);
@@ -193,7 +193,7 @@ int main() {
         }
 
         sleep_ms(4000);
-    } while(key != 'q');
+    } while(key != 'q');                                // LOOP UNTIL USER PRESSES 'Q' KEY
 
     exit_graphics();                                    // CLEANUP. DONE.
 
