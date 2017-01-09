@@ -41,7 +41,7 @@
             it queries and sets parameters for almost any device connected.
             TAKES: file descriptor AND a number that represents the request you're making:
                 FBIOGET_VSCREENINFO: returns struct fb_var_screeninfo with virtual resolution.
-                FBIOGET_FSCREENINFO: returns struct fb_fix_screeninfo to determin bit depth
+                FBIOGET_FSCREENINFO: returns struct fb_fix_screeninfo to determine bit depth
         [X] Determine the bit depth from returned struct fb_fix_screeninfo
         [X] Total size of mmap()'ed file is: fb_var_screeninfo.yres_virtual * fb_fix_screeninfo.line_length
     [X] Use ioctl() syscall to disable keypress echo which displays the keys you are typing
@@ -79,7 +79,7 @@
 
     [X] Use syscall nanosleep()
     [X] sleep for a number of milliseconds, not nanoseconds, by multiplying by 1,000,000
-    [X] Make nanosleep second parameter NULL b/c we aren't worried about the call being interrupted
+    [X] Make nanosleep 2nd parameter NULL b/c we aren't worried about the call being interrupted
 
 [X] draw_pixel(int X, int Y, color_t COLOR)
     
@@ -93,7 +93,7 @@
     USING draw_pixel(), MAKES A LINE FROM (X1,Y1) TO (X2,Y2) USING BRESENHAM'S ALGORITHM INTEGER MATH.
 
     [X] Implement Bresenham's algorithm using only integer math.
-    [X] Make sure the implmentation works for all valid coordinates and slopes.
+    [X] Make sure the implementation works for all valid coordinates and slopes.
 
 [X] draw_text(int X, int Y, const char *TEXT, color_t C)
     
@@ -104,7 +104,7 @@
     [X] Use the Apple font encoded into an array in iso_font.h 
     [X] Use the array defined in iso_font.h
         - e.g. The 16 values for the letter 'A' (ASCII 65) are found at indices (65)*(16+0) to (65)*(16+15)
-    [X] Use shifting and masking to go through each bit of the 16 rows and draw a pixel at the appropriate coordinate, if the bit is a 1.
+    [X] Use shifting and masking to go through each bit of the 16 rows and draw a pixel at the appropriate coordinate, iif the bit is a 1.
     [X] Break into two functions, one for drawing a single character, and then the required one for drawing all of the characters in a string.
     [X] DO NOT USE STRLEN() since it is a C standard library function.
     [X] Iterate until you find '\0'
