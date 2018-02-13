@@ -177,7 +177,7 @@ void draw_line(int x1, int y1, int x2, int y2, color_t c) {
 
     // keep the coordinates within the bounds of the display.
     if (x1 < 0 || x1 >= res_width) { x1 = abs(x1 % res_width); }
-    if (x2 < 0 || x2 >= res_width) { x1 = abs(x2 % res_width); }
+    if (x2 < 0 || x2 >= res_width) { x2 = abs(x2 % res_width); }
     if (y1 < 0 || y1 >= res_height) { y1 = abs(y1 % res_height); }
     if (y2 < 0 || y2 >= res_height) { y2 = abs(y2 % res_height); }
 
