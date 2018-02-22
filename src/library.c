@@ -9,7 +9,7 @@
 #include <sys/types.h>      /* open() select() */
 #include "iso_font.h"       /* font file */
 
-/* 
+/*
     Linux Graphics Library
 
     Joe Meszar (jwm54@pitt.edu)
@@ -22,6 +22,7 @@
     TERMIOS:        https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
     DRAW_LINE():    https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
     BIT SHIFT:      https://stackoverflow.com/a/26230537
+    MODULO:         https://stackoverflow.com/a/42131603/5635772
 */
 
 typedef unsigned short color_t;     // store RGB color
@@ -37,7 +38,8 @@ color_t *display_addr;                      // starting address of display
 struct fb_var_screeninfo display_res;       // resolution for the mapped display
 struct fb_fix_screeninfo display_depth;     // bit depth for the mapped display
 
-int abs(int value);
+char getkey();
+int modulo(int x, int N);
 void clear_screen();
 void draw_pixel(int x, int y, color_t color);
 void draw_line(int x1, int y1, int x2, int y2, color_t c);
@@ -45,7 +47,6 @@ void draw_text(int x, int y, const char *text, color_t c);
 void draw_char(int x, int y, const int c, color_t color);
 void init_graphics();
 void exit_graphics();
-char getkey();
 void set_terminal_settings(int on);
 void sleep_ms(long ms);
 
@@ -62,7 +63,7 @@ void sleep_ms(long ms);
     associated with the given display device and mapping into an array of LENGTHxWIDTHxBITDEPTH.
 
     The terminal is also manipulated by unsetting the CANONICAL and ECHO flags. This is done
-    to make the input available immediately (without the user having to type a line-delimiter 
+    to make the input available immediately (without the user having to type a line-delimiter
     character) by unsetting ICANON flag, and to not show any characters the user has typed on the
     screen by unsetting the ECHO flag.
 
@@ -91,7 +92,7 @@ void init_graphics() {
     Clear the screen, reset terminal settings, unmap the display,
     and then close the display file descriptor.
 
-    int munmap(void *ADDR, size_t LENGTH);    
+    int munmap(void *ADDR, size_t LENGTH);
 */
 void exit_graphics() {
     clear_screen();                         // clear the screen
@@ -102,16 +103,16 @@ void exit_graphics() {
 
 
 /*
-    Three independent sets of file descriptors are watched. Those listed in readfds 
-    will be watched to see if characters become available for reading (more precisely, 
-    to see if a read will not block; in particular, a file descriptor is also ready on 
-    end-of-file), those in writefds will be watched to see if a write will not block, 
-    and those in exceptfds will be watched for exceptions. 
+    Three independent sets of file descriptors are watched. Those listed in readfds
+    will be watched to see if characters become available for reading (more precisely,
+    to see if a read will not block; in particular, a file descriptor is also ready on
+    end-of-file), those in writefds will be watched to see if a write will not block,
+    and those in exceptfds will be watched for exceptions.
 
-    On exit, the sets are modified in place to indicate which file descriptors actually 
-    changed status. 
+    On exit, the sets are modified in place to indicate which file descriptors actually
+    changed status.
 
-    Each of the three file descriptor sets may be specified as NULL if no file descriptors 
+    Each of the three file descriptor sets may be specified as NULL if no file descriptors
     are to be watched for the corresponding class of events.
 
     Create a time interval of 0 seconds for constant polling of STDIN (keyboard); this
@@ -156,8 +157,8 @@ char getkey() {
     dedicated for each pixel (color_t). This is represented as res_width.
 */
 void draw_pixel(int x, int y, color_t color) {
-    if (x < 0 || x >= res_width) { x = abs(x % res_width); }        // keep within X boundary
-    if (y < 0 || y >= res_height) { y = abs(y % res_height); }      // keep within Y boundary    
+    if (x < 0 || x >= res_width) { x = modulo(x, res_width); }      // keep within X boundary
+    if (y < 0 || y >= res_height) { y = modulo(y, res_height); }    // keep within Y boundary
 
     display_addr[(y * res_width) + x] = RMASK(color) | GMASK(color) | BMASK(color);
 }
@@ -167,38 +168,31 @@ void draw_pixel(int x, int y, color_t color) {
     Using Bresenham's Algorithm for drawing a straight line
     between two given points.
 
-    NOTE: The algorithm has a "standard error" associated 
+    NOTE: The algorithm has a "standard error" associated
     with it. So when lines get drawn they will be approximate
     per-pixel locations.
 
     https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
 */
 void draw_line(int x1, int y1, int x2, int y2, color_t c) {
-
-    // keep the coordinates within the bounds of the display.
-    if (x1 < 0 || x1 >= res_width) { x1 = abs(x1 % res_width); }
-    if (x2 < 0 || x2 >= res_width) { x2 = abs(x2 % res_width); }
-    if (y1 < 0 || y1 >= res_height) { y1 = abs(y1 % res_height); }
-    if (y2 < 0 || y2 >= res_height) { y2 = abs(y2 % res_height); }
-
-    int dx = abs(x2-x1);                                // get destination x length
-    int sx = x1<x2 ? 1 : -1;                            // get source x direction
-    int dy = abs(y2-y1);                                // get destination y length
-    int sy = y1<y2 ? 1 : -1;                            // get source y direction
-    int err = (dx>dy ? dx : -dy)/2, e2;                 // determine standard error for line
+    int dx = abs(x2-x1);                        // get destination x length
+    int sx = x1<x2 ? 1 : -1;                    // get source x direction
+    int dy = abs(y2-y1);                        // get destination y length
+    int sy = y1<y2 ? 1 : -1;                    // get source y direction
+    int err = (dx>dy ? dx : -dy)/2, e2;         // determine standard error for line
 
     while(1) {
-        //sleep_ms(1);                                  // DEBUG
-        draw_pixel(x1, y1, c);                          // draw a point of the line
-        if (x1==x2 && y1==y2) break;                    // stop when reached the destination point
-        e2 = err;                                
-        if (e2 >-dx) { err -= dy; x1 += sx; }           // determine new X point according to standard error
-        if (e2 < dy) { err += dx; y1 += sy; }           // determine new Y point according to standard error
+        //sleep_ms(1);                          // DEBUG
+        draw_pixel(x1, y1, c);                  // draw a point of the line
+        if (x1==x2 && y1==y2) break;            // stop when reached the destination point
+        e2 = err;
+        if (e2 >-dx) { err -= dy; x1 += sx; }   // determine new X point according to standard error
+        if (e2 < dy) { err += dx; y1 += sy; }   // determine new Y point according to standard error
     }
 }
 
 
-/* 
+/*
     Loop through the given text and print out each character according
     to the X and Y coordinates supplied, using the color_t color supplied.
 
@@ -232,11 +226,19 @@ void draw_char(int x, int y, const int c, color_t color) {
 
 
 /*
-    Lazy absolute value function
+    The internal '%' C operator performs what is known as
+    a "remainder" operation; returning the positive, or
+    negative, remainder of the result.
+
+    When calculating where pixels should be drawn on the
+    screen, we only care about the positive remainder.
+    This is because we only want to draw within the legal
+    bounds of the display.
+
+    https://stackoverflow.com/a/42131603/5635772
 */
-int abs(int value) {
-    if (value < 0) { value = -value; }
-    return value;
+int modulo(int x, int N) {
+    return (x % N + N) %N;
 }
 
 
@@ -265,18 +267,18 @@ void clear_screen() {
 
     (*) c_lflag local modes:
 
-    ICANON - Perhaps the most important bit in c_lflag is the ICANON bit. Enabling it 
-        enables "canonical" mode – also known as "line editing" mode. When ICANON is 
-        set, the terminal buffers a line at a time, and enables line editing. Without 
-        ICANON, input is made available to programs immediately (this is also known 
+    ICANON - Perhaps the most important bit in c_lflag is the ICANON bit. Enabling it
+        enables "canonical" mode – also known as "line editing" mode. When ICANON is
+        set, the terminal buffers a line at a time, and enables line editing. Without
+        ICANON, input is made available to programs immediately (this is also known
         as "cbreak" mode).
 
-    ECHO - Controls whether input is immediately re-echoed as output. It is independent 
-        of ICANON, although they are often turned on and off together. When passwd 
+    ECHO - Controls whether input is immediately re-echoed as output. It is independent
+        of ICANON, although they are often turned on and off together. When passwd
         prompts for your password, your terminal is in canonical mode, but ECHO is disabled.
 
-    ISIG - Controls whether ^C and ^Z (and friends) generate signals or not. When 
-        unset, they are passed directly through as characters, without generating signals 
+    ISIG - Controls whether ^C and ^Z (and friends) generate signals or not. When
+        unset, they are passed directly through as characters, without generating signals
         to the application.
 */
 void set_terminal_settings(int on) {
@@ -308,7 +310,7 @@ void set_terminal_settings(int on) {
     int nanosleep(const struct timespec *REQ, struct timespec *REM);
 */
 void sleep_ms(long ms) {
-    struct timespec req;        
+    struct timespec req;
     req.tv_sec = 0;                 // sleep for zero seconds
     req.tv_nsec = ms*1000000;       // convert milliseconds to nanoseconds
     nanosleep(&req, NULL);          // (NULL) says to not worry about interrupts
