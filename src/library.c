@@ -39,6 +39,7 @@ struct fb_var_screeninfo display_res;       // resolution for the mapped display
 struct fb_fix_screeninfo display_depth;     // bit depth for the mapped display
 
 char getkey();
+int abs(int value);
 int modulo(int x, int N);
 void clear_screen();
 void draw_pixel(int x, int y, color_t color);
@@ -222,6 +223,15 @@ void draw_char(int x, int y, const int c, color_t color) {
             }
         }
     }
+}
+
+
+/*
+    Lazy absolute value function
+*/
+int abs(int value) {
+    if (value < 0) { value = -value; }
+    return value;
 }
 
 
